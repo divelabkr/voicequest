@@ -13,7 +13,7 @@ async function main(): Promise<void> {
   await s.append({ type: "turn_spoken", sceneId: "s1", transcript: "x", grade: "B", weakness: [], ts: 2 });
   console.log("append 후 파일:", readdirSync(dir));
 
-  const rm = await s.readModel(uid);
+  const rm = await s.readModel();
   console.log("readModel 동작:", !!rm.stats6, "· affinity 키:", Object.keys(rm.affinity).length);
 
   await s.purge();
