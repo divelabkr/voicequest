@@ -5,8 +5,8 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge } from "@voicequest/engine";
-import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard } from "@voicequest/engine";
+import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
 import { bootstrap, loadEnv } from "./bootstrap";
@@ -20,6 +20,26 @@ for (const f of readdirSync(EP_DIR).filter((n) => n.endsWith(".json"))) {
 }
 const DEFAULT_EP = "ep_01_daiki_diner";
 const ep = EPISODES.get(DEFAULT_EP) ?? [...EPISODES.values()][0]!;
+
+// 데일리 3마디 풀 — 전 에피소드 표현(중복 제거) + 의미(씬 intent). 게임↔데일리 연계.
+const DAILY_POOL: DailyCard[] = [];
+{
+  const seen = new Set<string>();
+  for (const epx of EPISODES.values()) for (const sc of epx.scenes) {
+    const expr = sc.allowedExpressions[0]; // 씬당 대표 1개 — 의미 다양성(같은 뜻 중복 방지)
+    if (expr && !seen.has(expr)) { seen.add(expr); DAILY_POOL.push(makeCard(expr, sc.intent, `${epx.id}/${sc.id}`)); }
+  }
+}
+// 데일리 발화 채점 — 단일 표현 매칭(judge 골격과 별개). 정확=S·포함=A·문자겹침=B·그외=C.
+function matchGrade(transcript: string, expected: string): Grade {
+  const n = (s: string): string => s.replace(/[、。！？!?\s]/g, "");
+  const t = n(transcript), e = n(expected);
+  if (!t || !e) return "C"; // 빈 발화는 오답(빈 문자열 includes 버그 방지)
+  if (t === e) return "S";
+  if (t.includes(e) || e.includes(t)) return "A";
+  const overlap = [...e].filter((c) => t.includes(c)).length / e.length;
+  return overlap >= 0.6 ? "B" : "C";
+}
 const { deps, firestoreApp } = bootstrap(ep, new URL("../../../.env", import.meta.url));
 
 // ── 콘텐츠 공장: 씬 생성기(빌드타임·admin 전용) — judge용 로컬 Qwen과 분리된 Anthropic 호출.
@@ -79,6 +99,7 @@ for (const epId of EPISODES.keys()) loadManifest(epId);
 const STAGE = "alpha" as const;
 const CAP = STAGE_LIMITS[STAGE].capacity;
 const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string }>();
+const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
@@ -105,16 +126,17 @@ function saveState(): void {
     saveTimer = null;
     try {
       mkdirSync(DATA_DIR, { recursive: true });
-      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites] }), (err) => {
+      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates] }), (err) => {
         if (err) console.error("[persist] saveState 실패:", err.message); // 실패를 더는 삼키지 않음
       });
     } catch (e) { console.error("[persist] saveState 실패:", String(e)); }
   }, 200);
 }
 try {
-  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][] };
+  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][] };
   for (const [k, v] of s.accounts) accounts.set(k, v);
   for (const [k, v] of s.invites) invites.set(k, v);
+  for (const [k, v] of s.daily ?? []) dailyStates.set(k, v);
 } catch { /* 첫 실행: 상태 파일 없음 */ }
 
 // [M5] 일일 턴캡 리셋 기준 = KST(UTC+9) 자정 — 유저 체감 "오늘"과 일치
@@ -161,6 +183,41 @@ const server = createServer(async (req, res) => {
     // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
     if (req.method === "GET" && req.url === "/episodes") {
       res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id) })) }));
+      return;
+    }
+    // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭
+    if (req.method === "GET" && req.url?.startsWith("/daily?")) {
+      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      let ds = dailyStates.get(sid);
+      if (!ds) { ds = { cards: [], streak: 0, lastDoneDay: 0 }; dailyStates.set(sid, ds); }
+      let cards = todaysCards(ds, Date.now(), 3);
+      if (cards.length < 3) {
+        const have = new Set(ds.cards.map((c) => c.expression));
+        const fresh = DAILY_POOL.filter((c) => !have.has(c.expression)).slice(0, 3 - cards.length);
+        ds.cards.push(...fresh);
+        cards = [...cards, ...fresh];
+        saveState();
+      }
+      res.end(JSON.stringify({ cards, streak: ds.streak }));
+      return;
+    }
+    // 데일리 발화 — audio → STT → 표현 매칭(matchGrade) → SRS 갱신 + 스트릭
+    if (req.method === "POST" && req.url?.startsWith("/daily/turn")) {
+      const u = new URL(req.url, "http://x");
+      const sid = u.searchParams.get("sid") ?? "", exp = u.searchParams.get("exp") ?? "";
+      if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
+      const chunks: Buffer[] = []; for await (const c of req) chunks.push(c as Buffer);
+      const audio = Buffer.concat(chunks);
+      let transcript = "";
+      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength); transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → C */ }
+      const grade = matchGrade(transcript, exp);
+      let ds = dailyStates.get(sid) ?? { cards: [], streak: 0, lastDoneDay: 0 };
+      const idx = ds.cards.findIndex((c) => c.expression === exp);
+      if (idx >= 0) ds.cards[idx] = reviewCard(ds.cards[idx]!, grade, Date.now());
+      ds = completeToday(ds, Date.now());
+      dailyStates.set(sid, ds);
+      saveState();
+      res.end(JSON.stringify({ grade, transcript, expected: exp, streak: ds.streak }));
       return;
     }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──
