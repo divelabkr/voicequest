@@ -1,6 +1,5 @@
-// 캐시 빌드 — NPC 대사를 음성(Fenrir)+후리가나(kuroshiro)+단어뜻(kuromoji)으로 사전생성.
-// "NPC는 캐시" 핵심 실현 + 오픈소스 4종 end-to-end. content_cache/ep_01/{manifest.json, audio/}.
-// 실행: tsx cache-build.ts
+// 캐시 빌드 — NPC 대사 음성(화자별 voice)+후리가나+단어뜻 사전생성.
+// 에피소드 인자: tsx cache-build.ts [ep_id]  (기본 ep_01). content_cache/{short}/{manifest.json, audio/}.
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
@@ -44,16 +43,23 @@ async function tts(text: string, voice: string): Promise<Buffer> {
   return pcmToWav(Buffer.from(b64, "base64"), 24000);
 }
 
-const GLOSS: Record<string, string> = { 今: "지금, 현재", 混む: "붐비다", 立ち話: "선 채로 나누는 이야기", 座る: "앉다", 一人: "한 명", 二人: "두 명", 注文: "주문", 完食: "남김없이 다 먹음", 会計: "계산", 感想: "감상, 소감" };
-// ep_01 JSON에서 NPC 선창(npc/npc_push) 자동 수집 + ack/회복 대사 → 캐시 음성(하드코드 LINES 제거).
-const epData = JSON.parse(readFileSync(new URL("../content/episodes/ep_01_daiki_diner.json", import.meta.url), "utf8")) as { scenes: Array<{ beats?: Array<{ kind: string; line?: string }> }> };
-const SCENE_LINES = epData.scenes.flatMap((s) => (s.beats ?? []).filter((b) => (b.kind === "npc" || b.kind === "npc_push") && b.line).map((b) => b.line as string));
-const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ"];
+const GLOSS: Record<string, string> = { 今: "지금, 현재", 混む: "붐비다", 立ち話: "선 채로 나누는 이야기", 座る: "앉다", 一人: "한 명", 二人: "두 명", 注文: "주문", 完食: "남김없이 다 먹음", 会計: "계산", 感想: "감상, 소감", 切符: "표", 乗り換え: "환승", 渋谷: "시부야", 放課後: "방과후" };
+
+const EP_ID = process.argv[2] ?? "ep_01_daiki_diner";
+const SHORT = EP_ID.split("_").slice(0, 2).join("_");
+const epData = JSON.parse(readFileSync(new URL(`../content/episodes/${EP_ID}.json`, import.meta.url), "utf8")) as {
+  character?: string; npcs?: Array<{ id: string; voiceName?: string }>;
+  scenes: Array<{ beats?: Array<{ kind: string; line?: string; speaker?: string }> }>;
+};
+const NPCS = epData.npcs ?? [];
+const MAIN_VOICE = NPCS.find((n) => n.id === epData.character)?.voiceName ?? "Fenrir";
+const voiceOf = (speaker?: string): string => (speaker ? NPCS.find((n) => n.id === speaker)?.voiceName : undefined) ?? MAIN_VOICE;
+const SCENE_LINES = epData.scenes.flatMap((s) => (s.beats ?? []).filter((b) => (b.kind === "npc" || b.kind === "npc_push") && b.line).map((b) => ({ text: b.line as string, voice: voiceOf(b.speaker) })));
+const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ"].map((t) => ({ text: t, voice: MAIN_VOICE }));
 const LINES = [...SCENE_LINES, ...ACK_LINES];
-const VOICE = "Fenrir"; // 다이키 = 활기참(식당 주인)
 
 async function main(): Promise<void> {
-  const outDir = new URL("../content_cache/ep_01/", import.meta.url);
+  const outDir = new URL(`../content_cache/${SHORT}/`, import.meta.url);
   mkdirSync(new URL("audio/", outDir), { recursive: true });
   const kuroshiro = new Kuroshiro();
   await kuroshiro.init(new KuromojiAnalyzer());
@@ -63,36 +69,32 @@ async function main(): Promise<void> {
   const lines = [];
   let total = 0;
   for (let i = 0; i < LINES.length; i++) {
-    const line = LINES[i]!;
+    const { text, voice } = LINES[i]!;
     const m4aRel = `audio/line_${i}.m4a`;
     const m4aUrl = new URL(m4aRel, outDir);
     let audio = m4aRel;
     let bytes = 0;
     if (existsSync(m4aUrl)) {
-      bytes = readFileSync(m4aUrl).length; // 기존 압축본 재사용 — TTS quota 절약(재실행 멱등)
+      bytes = readFileSync(m4aUrl).length; // 기존 압축본 재사용 — quota 절약(멱등)
     } else {
       let wav: Buffer;
-      try { wav = await tts(line, VOICE); }
-      catch (e) { console.log(`  ⚠ [${i}] TTS 실패 → 음성 없이 자막으로 진행: ${String(e).slice(0, 40)}`); continue; }
+      try { wav = await tts(text, voice); }
+      catch (e) { console.log(`  ⚠ [${i}] TTS 실패 → 자막으로 진행: ${String(e).slice(0, 40)}`); continue; }
       const wavUrl = new URL(`audio/line_${i}.wav`, outDir);
       writeFileSync(wavUrl, wav);
-      // ① 음성 압축(§11) — afconvert WAV→AAC(.m4a 32kbps mono). 원본 폐기. 실패 시 WAV.
       bytes = wav.length;
-      try {
-        execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", fileURLToPath(wavUrl), fileURLToPath(m4aUrl)]);
-        bytes = readFileSync(m4aUrl).length;
-        rmSync(fileURLToPath(wavUrl));
-      } catch { audio = `audio/line_${i}.wav`; }
+      try { execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", fileURLToPath(wavUrl), fileURLToPath(m4aUrl)]); bytes = readFileSync(m4aUrl).length; rmSync(fileURLToPath(wavUrl)); }
+      catch { audio = `audio/line_${i}.wav`; }
     }
     total += bytes;
-    const furigana = await kuroshiro.convert(line, { mode: "okurigana", to: "hiragana" });
-    const words = tokenizer.tokenize(line)
+    const furigana = await kuroshiro.convert(text, { mode: "okurigana", to: "hiragana" });
+    const words = tokenizer.tokenize(text)
       .map((t) => { const base = t.basic_form !== "*" ? t.basic_form : t.surface_form; return GLOSS[base] ? { w: t.surface_form, gloss: GLOSS[base] } : null; })
       .filter((x): x is { w: string; gloss: string } => x !== null);
-    lines.push({ text: line, audio, furigana, words, bytes });
-    console.log(`  ✓ [${i}] ${line.slice(0, 18)}… → 음성 ${(bytes / 1024).toFixed(0)}KB${audio.endsWith(".m4a") ? "(AAC)" : ""} · 후리가나 · 단어뜻 ${words.length}`);
+    lines.push({ text, audio, furigana, words, bytes });
+    console.log(`  ✓ [${i}] ${text.slice(0, 16)}… (${voice}) → ${(bytes / 1024).toFixed(0)}KB · 뜻 ${words.length}`);
   }
-  writeFileSync(new URL("manifest.json", outDir), JSON.stringify({ episode: "ep_01", voice: VOICE, lines }, null, 2));
-  console.log(`\n✅ 캐시 빌드 완료: ${LINES.length}개 대사 = 음성(${VOICE})+후리가나+단어뜻 → content_cache/ep_01/ (총 ${(total / 1024).toFixed(0)}KB)`);
+  writeFileSync(new URL("manifest.json", outDir), JSON.stringify({ episode: SHORT, lines }, null, 2));
+  console.log(`\n✅ ${EP_ID}: ${lines.length}개 음성 → content_cache/${SHORT}/ (${(total / 1024).toFixed(0)}KB)`);
 }
 main().catch((e) => { console.error(String(e).slice(0, 300)); process.exit(1); });
