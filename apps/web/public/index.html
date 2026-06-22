@@ -160,12 +160,18 @@ async function advanceNpc(){
 }
 async function enter(){
   document.getElementById('enter').remove();
-  showLoading('다이키의 라멘집 준비 중…'); // 입장 준비 — 캐시 음성·자산 로딩(§7 레이턴시 흡수)
+  showLoading(currentEpTitle+' 준비 중…'); // 입장 준비 — 캐시·자산 로딩(§7 레이턴시 흡수)
   var t0=Date.now();
   await advanceNpc();
   var el2=Date.now()-t0; if(el2<1500) await new Promise(function(r){setTimeout(r,1500-el2);}); // 최소 표시(연출)
   hideLoading();
   document.getElementById('mic').style.display='block';
+  // ⑧ 첫 입장 온보딩 — 마이크 사용법 1회 안내(§5 음성 게이트가 유일 입력)
+  if(!localStorage.getItem('vq_onboarded')){
+    document.getElementById('log').appendChild(el('<div class="bubble npc" style="background:#fff8e1;border-color:#f0d775">🎤 아래 버튼을 누르고 일본어로 말해보세요. 잘 안 들려도 NPC가 분기로 받아줘요.</div>'));
+    document.getElementById('log').scrollTop=document.getElementById('log').scrollHeight;
+    localStorage.setItem('vq_onboarded','1');
+  }
 }
 let busy = false;
 async function onMic(){
