@@ -31,6 +31,9 @@ export interface TurnResult {
   nextSceneId: string;
   done: boolean;
   awaitsUser: boolean; // false=NPC 능동(유저 무시), true=유저 판정
+  speaker?: string; // 발화 NPC id(다중 NPC 챕터 — 없으면 메인 character)
+  speakerName?: string; // 화자 표시명
+  speakerIsMain?: boolean; // 메인 캐릭터 여부(서브 NPC만 라벨 표시)
 }
 
 const USER_BEAT: DialogueBeat = { kind: "user" };
@@ -51,11 +54,17 @@ export async function runTurn(
   // ── NPC 능동 / 끼어듦 무시 / 무반응 — 유저 발화를 judge하지 않고 자동 진행 ──
   if (beat.kind !== "user") {
     const npcLine = beat.kind === "npc_silent" ? "（…沈黙…）" : beat.line;
-    const audioUrl = await safeSynth(deps.tts,npcLine, deps.episode.character);
+    // 다중 NPC — beat.speaker(npc id)로 화자 결정. 없으면 메인 character. voice도 화자 기준.
+    const speaker = (beat.kind === "npc" || beat.kind === "npc_push") ? (beat.speaker ?? deps.episode.character) : deps.episode.character;
+    const speakerNpc = deps.episode.npcs?.find((n) => n.id === speaker);
+    const audioUrl = await safeSynth(deps.tts, npcLine, speaker);
     return {
       result: {
         npcLine,
         audioUrl,
+        speaker,
+        speakerName: speakerNpc?.name,
+        speakerIsMain: speaker === deps.episode.character,
         grade: "-",
         affinity: state.affinity,
         nextSceneId: state.currentSceneId,

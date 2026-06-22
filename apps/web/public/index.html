@@ -29,6 +29,19 @@ ruby rt{font-size:.5em;color:var(--hint)}
 .gloss{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);line-height:1.6}
 .mic{margin:16px;padding:16px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:500;cursor:pointer;font-family:inherit}
 .mic.rec{background:#a32d2d}
+.wrap{position:relative}
+.loading{position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:20}
+.bowl{position:relative;font-size:64px;line-height:1}
+.steam{position:absolute;top:-10px;width:5px;height:22px;background:linear-gradient(to top,rgba(201,196,186,0),rgba(201,196,186,.9));border-radius:3px;opacity:0;animation:steam 2.1s ease-in-out infinite}
+.steam.s1{left:24px}.steam.s2{left:36px;animation-delay:.7s}.steam.s3{left:48px;animation-delay:1.4s}
+@keyframes steam{0%{opacity:0;transform:translateY(6px) scaleY(.6)}45%{opacity:.8}100%{opacity:0;transform:translateY(-16px) scaleY(1.2)}}
+.wave{display:flex;gap:7px;align-items:center;height:48px}
+.wave i{display:block;width:7px;height:14px;background:var(--blue);border-radius:4px;animation:wv 1s ease-in-out infinite}
+.wave i:nth-child(2){animation-delay:.12s}.wave i:nth-child(3){animation-delay:.24s}.wave i:nth-child(4){animation-delay:.36s}.wave i:nth-child(5){animation-delay:.48s}
+@keyframes wv{0%,100%{height:14px}50%{height:46px}}
+.ltext{color:var(--muted);font-size:15px}
+.lbar{width:220px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.lbar>div{height:100%;width:0;background:var(--blue);transition:width .2s ease}
 </style>
 </head>
 <body>
@@ -39,6 +52,17 @@ let userId = null, rec = null, recChunks = [];
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function furi(s){ return (s||'').replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>'); }
+function showLoading(msg){
+  var app=document.getElementById('app');
+  var d=document.createElement('div'); d.className='loading'; d.id='loadingOv';
+  d.innerHTML='<div class="bowl">🍜<span class="steam s1"></span><span class="steam s2"></span><span class="steam s3"></span></div>'
+    +'<div class="wave"><i></i><i></i><i></i><i></i><i></i></div>'
+    +'<div class="ltext">'+msg+'</div><div class="lbar"><div id="lbarFill"></div></div>';
+  app.appendChild(d);
+  var f=d.querySelector('#lbarFill'), p=0;
+  d._t=setInterval(function(){ p=Math.min(92,p+Math.random()*16); f.style.width=p+'%'; },200);
+}
+function hideLoading(){ var d=document.getElementById('loadingOv'); if(!d)return; var f=d.querySelector('#lbarFill'); if(f)f.style.width='100%'; clearInterval(d._t); setTimeout(function(){d.remove();},260); }
 
 function signupView(){
   const app = document.getElementById('app');
@@ -106,7 +130,8 @@ function addBubble(res){
     ? esc(res.furigana).replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>')
     : esc(res.npcLine);
   if(res.words && res.words.length){ html += '<div class="gloss">'+res.words.map(function(w){return esc(w.w)+' · '+esc(w.gloss);}).join('<br>')+'</div>'; }
-  log.appendChild(el('<div class="bubble npc">'+html+'</div>'));
+  var spk=(res.speakerName&&!res.speakerIsMain)?'<div style="font-size:12px;color:var(--pink);margin-bottom:3px;font-weight:500">'+esc(res.speakerName)+'</div>':'';
+  log.appendChild(el('<div class="bubble npc">'+spk+html+'</div>'));
   log.scrollTop=log.scrollHeight;
   document.getElementById('aff').textContent = '♥ '+res.affinity;
   if(res.audioUrl){ try{ new Audio(API+res.audioUrl).play(); }catch(e){} }
@@ -121,8 +146,12 @@ async function advanceNpc(){
 }
 async function enter(){
   document.getElementById('enter').remove();
-  document.getElementById('mic').style.display='block';
+  showLoading('다이키의 라멘집 준비 중…'); // 입장 준비 — 캐시 음성·자산 로딩(§7 레이턴시 흡수)
+  var t0=Date.now();
   await advanceNpc();
+  var el2=Date.now()-t0; if(el2<1500) await new Promise(function(r){setTimeout(r,1500-el2);}); // 최소 표시(연출)
+  hideLoading();
+  document.getElementById('mic').style.display='block';
 }
 let busy = false;
 async function onMic(){
@@ -142,9 +171,10 @@ async function onMic(){
   const blob = await new Promise(function(res){ rec.onstop=function(){ rec.stream.getTracks().forEach(function(t){t.stop();}); res(new Blob(recChunks,{type:'audio/webm'})); }; rec.stop(); });
   rec=null;
   const log=document.getElementById('log');
-  log.appendChild(el('<div class="bubble you">(내 발화)</div>')); log.scrollTop=log.scrollHeight;
-  try{ const res = await postTurn(blob); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
-  catch(e){ log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
+  log.appendChild(el('<div class="bubble you">(내 발화)</div>'));
+  var think=el('<div class="bubble npc"><span class="wave" style="height:18px;gap:5px"><i style="width:5px"></i><i style="width:5px"></i><i style="width:5px"></i></span></div>'); log.appendChild(think); log.scrollTop=log.scrollHeight; // §7 추임새 — judge 대기 레이턴시 흡수
+  try{ const res = await postTurn(blob); if(think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
+  catch(e){ if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
   finally{ busy=false; }
 }
 function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

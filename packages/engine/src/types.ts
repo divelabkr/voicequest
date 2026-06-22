@@ -46,10 +46,10 @@ export interface Scene {
 
 /** 발화 트리 노드 — 사람 대화의 엣지를 표현(음성 게이트는 user에만) */
 export type DialogueBeat =
-  | { kind: "npc"; line: string }           // NPC 능동 발화(유저 입력 불필요 → 자동 진행)
-  | { kind: "user" }                        // 유저 발화 대기 → judge
-  | { kind: "npc_push"; line: string }      // 유저가 끼어들어도 무시하고 밀어붙임
-  | { kind: "npc_silent"; holdMs: number }; // 듣고도 대답 안 함(침묵 연출)
+  | { kind: "npc"; line: string; speaker?: string }       // NPC 발화(speaker=npc id, 없으면 메인 character)
+  | { kind: "user" }                                       // 유저 발화 대기 → judge
+  | { kind: "npc_push"; line: string; speaker?: string }   // 유저가 끼어들어도 밀어붙임
+  | { kind: "npc_silent"; holdMs: number };                // 듣고도 대답 안 함(침묵 연출)
 
 /** OPIc 준하는 고난이도 챌린지 — 긴 발화·내용·정중도를 rubric으로 평가 */
 export interface SceneChallenge {
@@ -84,10 +84,25 @@ export interface GenerationGuide {
   guardrails: string[]; // 금지(무례·OOC·세계관 이탈)
 }
 
+/** NPC 정의 — 한 에피소드(챕터)에 여러 NPC가 등장(주인·손님·동료 등). voice=캐시 빌드 키. */
+export interface Npc {
+  id: string;
+  name: string;
+  /** TTS voice(캐시 빌드 키) — 없으면 메인 character의 프리셋 */
+  voiceName?: string;
+  /** 성격·말투(빌드타임 대사 생성 힌트) */
+  persona?: string;
+  /** 역할 — 등장 맥락(주인/손님/동료/점원 등) */
+  role?: string;
+}
+
 export interface Episode {
   id: string;
   title: string;
+  /** 메인 NPC(기본 화자·레거시 호환) */
   character: string;
+  /** 등장 NPC들(없으면 character 단일). 한 챕터 다중 NPC */
+  npcs?: Npc[];
   /** 빌드타임 대사 생성 가이드(없으면 레거시 수작업 콘텐츠) */
   guide?: GenerationGuide;
   scenes: Scene[];

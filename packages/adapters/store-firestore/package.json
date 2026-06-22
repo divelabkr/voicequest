@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
-    "@voicequest/engine": "workspace:*"
+    "@voicequest/engine": "workspace:*",
+    "firebase-admin": "^14.0.0"
   }
 }

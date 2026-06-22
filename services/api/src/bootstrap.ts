@@ -5,6 +5,7 @@ import { buildReadModel } from "@voicequest/engine";
 import type { Episode, TtsPort, EventStorePort, GameEvent } from "@voicequest/engine";
 import { DeepgramStt } from "@voicequest/stt-deepgram";
 import { QwenLlm } from "@voicequest/llm-qwen";
+import { initFirestore, type FirestoreApp } from "@voicequest/store-firestore";
 import type { TurnDeps } from "./session";
 
 /** .env 파서(인라인 주석·따옴표·CR 정리). */
@@ -22,6 +23,8 @@ export function loadEnv(path: string | URL): Record<string, string> {
 export interface BootResult {
   deps: TurnDeps;
   events: GameEvent[];
+  /** Firestore App(서비스 계정 키 있으면) — server가 유저별 store에 주입. 없으면 null→파일 폴백. */
+  firestoreApp: FirestoreApp | null;
 }
 
 /** .env 키로 실어댑터 조립. judge는 무료 로컬 Qwen, TTS는 자막모드(음성 캐시는 M3). */
@@ -36,5 +39,8 @@ export function bootstrap(episode: Episode, envPath: string | URL): BootResult {
     async append(e) { events.push(e); },
     async readModel() { return buildReadModel(events); },
   };
-  return { deps: { stt, llm, tts, store, episode }, events };
+  // Firestore 3단 폴백 — 서비스 계정 키(FIREBASE_SERVICE_ACCOUNT: JSON 또는 경로) 있으면 연결, 없으면 파일.
+  const firestoreApp = env.FIREBASE_SERVICE_ACCOUNT ? initFirestore(env.FIREBASE_SERVICE_ACCOUNT) : null;
+  console.log(firestoreApp ? "[bootstrap] Firestore 영속 연결됨(voicequest-dev)" : "[bootstrap] 파일 영속(data/events) — Firestore 키 없음");
+  return { deps: { stt, llm, tts, store, episode }, events, firestoreApp };
 }

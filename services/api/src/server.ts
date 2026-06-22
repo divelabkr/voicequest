@@ -10,12 +10,12 @@ import type { GameState, UsageState, GameEvent, EventStorePort, Account, Consent
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
 import { bootstrap, loadEnv } from "./bootstrap";
-import { PersistentEventStore } from "@voicequest/store-firestore";
+import { makeEventStore } from "@voicequest/store-firestore";
 
 const ep = parseEpisode(
   JSON.parse(readFileSync(new URL("../../../content/episodes/ep_01_daiki_diner.json", import.meta.url), "utf8")),
 );
-const { deps } = bootstrap(ep, new URL("../../../.env", import.meta.url));
+const { deps, firestoreApp } = bootstrap(ep, new URL("../../../.env", import.meta.url));
 
 // ── 콘텐츠 공장: 씬 생성기(빌드타임·admin 전용) — judge용 로컬 Qwen과 분리된 Anthropic 호출.
 //    "생성은 LLM, 판정은 골격"(§4): intent는 입력값으로 강제 고정하고 sceneGuard로 검수한다.
@@ -35,6 +35,12 @@ async function genScene(context: string, intent: string, strictness: Strictness,
 규칙: allowedExpressions(일본어)·beats만 생성. beats는 npc 선창으로 시작하고 user 비트를 최소 1개 포함.
 JSON: {"intent":"${intent}","allowedExpressions":["..."],"beats":[{"kind":"npc","line":"..."},{"kind":"user"}]}
 JSON만, 설명 없이.`;
+  // Qwen 극한 — 키 있으면 Anthropic 품질, 없으면 무료 로컬 Qwen(Ollama). 콘텐츠 공장도 비용 0 가능.
+  const text = ANTHROPIC_KEY ? await genAnthropic(prompt) : await genQwen(prompt);
+  const m = text.match(/\{[\s\S]*\}/); // 앞뒤 설명이 섞여도 JSON 본체만 추출
+  return JSON.parse(m ? m[0] : "{}") as Partial<Scene>;
+}
+async function genAnthropic(prompt: string): Promise<string> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
@@ -42,9 +48,17 @@ JSON만, 설명 없이.`;
   });
   if (!r.ok) throw new Error(`anthropic_${r.status}`);
   const j = (await r.json()) as { content?: Array<{ text?: string }> };
-  const text = j.content?.[0]?.text ?? "{}";
-  const m = text.match(/\{[\s\S]*\}/); // 앞뒤 설명이 섞여도 JSON 본체만 추출
-  return JSON.parse(m ? m[0] : "{}") as Partial<Scene>;
+  return j.content?.[0]?.text ?? "{}";
+}
+async function genQwen(prompt: string): Promise<string> {
+  const r = await fetch("http://localhost:11434/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model: "qwen3-coder:30b", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } }),
+  });
+  if (!r.ok) throw new Error(`qwen_${r.status}`);
+  const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return j.choices?.[0]?.message?.content ?? "{}";
 }
 
 // 캐시 빌드 산출물(음성+후리가나+단어뜻) — runTurn 결과에 붙여 반환
@@ -223,13 +237,14 @@ const server = createServer(async (req, res) => {
         try {
           const e = JSON.parse(readFileSync(resolve(dir, f), "utf8")) as {
             id: string; title?: string; character?: string;
-            scenes?: Array<{ id: string; intent?: string; level?: string; allowedExpressions?: string[]; beats?: Array<{ kind: string; line?: string }> }>;
+            npcs?: Array<{ id: string; name: string; role?: string; voiceName?: string }>;
+            scenes?: Array<{ id: string; intent?: string; level?: string; allowedExpressions?: string[]; beats?: Array<{ kind: string; line?: string; speaker?: string }> }>;
           };
           const scenes = e.scenes ?? [];
           const shortId = e.id.split("_").slice(0, 2).join("_"); // ep_01_daiki_diner → ep_01(캐시 디렉토리)
           const cached = existsSync(fileURLToPath(new URL(`../../../content_cache/${shortId}/manifest.json`, import.meta.url)));
           return {
-            id: e.id, title: e.title ?? f, character: e.character ?? "",
+            id: e.id, title: e.title ?? f, character: e.character ?? "", npcs: e.npcs ?? [],
             sceneCount: scenes.length,
             beatCount: scenes.reduce((n, s) => n + (s.beats?.length ?? 0), 0),
             cached,
@@ -243,7 +258,7 @@ const server = createServer(async (req, res) => {
     // ── 콘텐츠 공장: 씬 생성 + 검수(§4). intent는 코드가 고정, judge가 쓸 골격을 sceneGuard가 보증 ──
     if (req.method === "POST" && req.url?.startsWith("/admin/scene-gen")) {
       if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
-      if (!ANTHROPIC_KEY) { res.statusCode = 503; res.end(JSON.stringify({ error: "no_llm_key", hint: ".env에 ANTHROPIC_KEY 필요" })); return; }
+      // 키 없어도 무료 Qwen(Ollama)으로 생성 — 503 차단 제거(Qwen 극한). 둘 다 없으면 gen_failed로 떨어짐.
       const body = parseBody<{ context: string; intent: string; strictness: Strictness; character?: string }>(await readBody(req));
       if (!body?.context || !body.intent || !body.strictness) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request", hint: "context·intent·strictness 필요" })); return; }
       costMeter = rollMonth(costMeter, monthKST());
@@ -309,7 +324,7 @@ const server = createServer(async (req, res) => {
       for (const [code, inv] of invites) { if (inv.boundUserId === body.userId) invites.set(code, revokeInvite(inv)); }
       sessions.delete(body.userId);
       accounts.delete(body.userId);
-      try { await new PersistentEventStore(EVENTS_DIR, body.userId).purge(); } catch (e) { console.error("[purge]", String(e)); }
+      try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: body.userId }).purge?.(body.userId); } catch (e) { console.error("[purge]", String(e)); }
       saveState();
       res.end(JSON.stringify({ deleted: body.userId }));
       return;
@@ -345,7 +360,7 @@ const server = createServer(async (req, res) => {
       sessions.delete(sid);
       accounts.delete(sid);
       // 잊혀질 권리(§9) — 영속 events 파일도 삭제(미연결이면 noop, 연결 시 자동 적용)
-      try { await new PersistentEventStore(EVENTS_DIR, sid).purge(); } catch (e) { console.error("[purge] events:", String(e)); }
+      try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: sid }).purge?.(sid); } catch (e) { console.error("[purge] events:", String(e)); }
       saveState();
       res.end(JSON.stringify({ status: w.account.status, purged: w.purge }));
       return;
@@ -380,7 +395,7 @@ const server = createServer(async (req, res) => {
       }
       const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength);
       // events 영속(⑥) — 인메모리(signals용) + 유저별 파일(재시작·readModel 누적) 병행
-      const userStore = new PersistentEventStore(EVENTS_DIR, sid);
+      const userStore = makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: sid });
       const sessStore: EventStorePort = {
         async append(e) { sess!.events.push(e); await userStore.append(e); },
         async readModel() { return buildReadModel(sess!.events); },
