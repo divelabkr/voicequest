@@ -53,6 +53,23 @@ let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [],
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function furi(s){ return (s||'').replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>'); }
 function toggleFuri(){ showFuri=!showFuri; localStorage.setItem('vq_furi',showFuri?'1':'0'); var b=document.getElementById('furiBtn'); if(b)b.textContent='가나 '+(showFuri?'ON':'OFF'); }
+// 일본어 → 한글 발음(근사) — 초보 진입 보조. 가나 표 + 가타카나 정규화 + ん/촉음 받침·장음 생략·요음.
+function yomiHangul(s){
+  var T={あ:'아',い:'이',う:'우',え:'에',お:'오',か:'카',き:'키',く:'쿠',け:'케',こ:'코',さ:'사',し:'시',す:'스',せ:'세',そ:'소',た:'타',ち:'치',つ:'츠',て:'테',と:'토',な:'나',に:'니',ぬ:'누',ね:'네',の:'노',は:'하',ひ:'히',ふ:'후',へ:'헤',ほ:'호',ま:'마',み:'미',む:'무',め:'메',も:'모',や:'야',ゆ:'유',よ:'요',ら:'라',り:'리',る:'루',れ:'레',ろ:'로',わ:'와',を:'오',が:'가',ぎ:'기',ぐ:'구',げ:'게',ご:'고',ざ:'자',じ:'지',ず:'즈',ぜ:'제',ぞ:'조',だ:'다',ぢ:'지',づ:'즈',で:'데',ど:'도',ば:'바',び:'비',ぶ:'부',べ:'베',ぼ:'보',ぱ:'파',ぴ:'피',ぷ:'푸',ぺ:'페',ぽ:'포'};
+  var Y={'ゃ':'야','ゅ':'유','ょ':'요'};
+  function jong(ch,idx){ var c=ch.charCodeAt(0); if(c<0xAC00||c>0xD7A3||(c-0xAC00)%28!==0)return null; return String.fromCharCode(c+idx); }
+  var out='', a=Array.from(s||'');
+  for(var i=0;i<a.length;i++){
+    var ch=a[i], code=ch.charCodeAt(0);
+    if(code>=0x30A1&&code<=0x30F6) ch=String.fromCharCode(code-0x60); // 가타카나→히라가나
+    if(ch==='ー') continue; // 장음 생략(근사)
+    if(ch==='ん'){ var j=jong(out.slice(-1),4); out=j?out.slice(0,-1)+j:out+'ㄴ'; continue; }
+    if(ch==='っ'){ var k=jong(out.slice(-1),19); if(k)out=out.slice(0,-1)+k; continue; }
+    if(Y[ch]){ out=out.slice(0,-1)+Y[ch]; continue; }
+    out+= T[ch]||'';
+  }
+  return out||s;
+}
 function showLoading(msg){
   var app=document.getElementById('app');
   var d=document.createElement('div'); d.className='loading'; d.id='loadingOv';
@@ -116,7 +133,8 @@ function dailyCard(){
   var c=st.cards[st.idx];
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">오늘의 3마디 · '+(st.idx+1)+'/'+st.cards.length+' · 🔥 '+st.streak+'</div>'
-    +'<div style="font-size:26px;margin:26px 0 8px;font-weight:600">'+esc2(c.expression)+'</div>'
+    +'<div style="font-size:26px;margin:26px 0 4px;font-weight:600">'+esc2(c.expression)+'</div>'
+    +((showFuri && !/[一-龯々]/.test(c.expression))?'<div style="font-size:15px;color:var(--blue);margin-bottom:6px">'+esc2(yomiHangul(c.expression))+'</div>':'')
     +'<div class="sub" style="margin-bottom:30px">'+esc2(c.meaning)+'</div>'
     +'<button class="mic" id="dmic">🎤 눌러서 따라 말하기</button>'
     +'<div id="dresult" style="margin-top:16px;min-height:26px"></div></div>';
