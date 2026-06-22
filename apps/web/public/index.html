@@ -163,7 +163,7 @@ function dailyDone(){
 }
 function talkView(){
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span><button id="furiBtn" onclick="toggleFuri()" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;margin-right:10px;cursor:pointer">가나 '+(showFuri?"ON":"OFF")+'</button><span id="aff" style="color:var(--pink)">♥ 0</span></span></div>'
+  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span><span id="prog" class="sub" style="margin-right:10px"></span><button id="furiBtn" onclick="toggleFuri()" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;margin-right:10px;cursor:pointer">가나 '+(showFuri?"ON":"OFF")+'</button><span id="aff" style="color:var(--pink)">♥ 0</span></span></div>'
     + '<div class="log" id="log"><button class="btn" style="max-width:200px;margin:30px auto;display:block" id="enter">입장하기</button></div>'
     + '<button class="mic" id="mic" style="display:none">🎤 눌러서 말하기</button>';
   app.querySelector('#enter').onclick = enter;
@@ -206,6 +206,7 @@ function addBubble(res){
   affEl.textContent='♥ '+res.affinity;
   if(res.affinity>prevAff && affEl.animate){ affEl.animate([{transform:'scale(1)'},{transform:'scale(1.5)'},{transform:'scale(1)'}],{duration:450}); }
   window._prevAff=res.affinity;
+  if(res.progress){ var pe=document.getElementById('prog'); if(pe)pe.textContent='씬 '+res.progress.scene+'/'+res.progress.total; }
   if(res.audioUrl && res.audioUrl.indexOf('/cache/')===0){ try{ new Audio(API+res.audioUrl).play(); }catch(e){} }
 }
 

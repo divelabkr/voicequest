@@ -488,7 +488,9 @@ const server = createServer(async (req, res) => {
       const manifest = MANIFESTS.get(sess.episodeId);
       const cl = manifest?.lines.find((l) => norm(l.text) === norm(result.npcLine));
       const enriched = cl ? { ...result, furigana: cl.furigana, words: cl.words, audioUrl: `/cache/${shortOf(sess.episodeId)}/${cl.audio}` } : result;
-      res.end(JSON.stringify(enriched));
+      const sessEp2 = EPISODES.get(sess.episodeId) ?? ep;
+      const sceneNo = sessEp2.scenes.findIndex((s) => s.id === state.currentSceneId) + 1;
+      res.end(JSON.stringify({ ...enriched, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length } }));
       return;
     }
     res.statusCode = 404;
