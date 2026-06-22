@@ -144,7 +144,7 @@ export async function runTurn(
   // 직전 발화에 대한 ack 반응 — 다음 씬의 실제 선창은 beats 폴링이 잇는다(placeholder 노출 제거).
   const npcLine =
     jr.nextSceneId === "recovery" ? "もう一度どうぞ"
-      : adv.state.done ? "また来てね！またいつでもおいで" : ackLine(jr.grade);
+      : adv.state.done ? (scene.register === "polite" ? "ご利用ありがとうございました。またどうぞ。" : "また来てね！") : ackLine(jr.grade, scene.register);
   const audioUrl = await safeSynth(deps.tts,npcLine, deps.episode.character);
   await deps.store.append({
     type: "turn_spoken",
@@ -202,9 +202,10 @@ function deflectionLine(tone: "gentle" | "firm" | "cold"): string {
   }
 }
 
-// 직전 발화에 대한 다이키의 짧은 반응(grade 기반). 다음 씬 선창은 beats 폴링이 잇는다.
-function ackLine(grade: string): string {
-  if (grade === "S" || grade === "A") return "おっ、いいね！";
-  if (grade === "B") return "はいよ、了解！";
-  return "うん、なるほどね";
+// 직전 발화 반응(grade + register) — 정중체 캐릭터(미도리)와 반말(다이키·소라) 톤 분리.
+function ackLine(grade: string, register?: "polite" | "casual"): string {
+  const p = register === "polite";
+  if (grade === "S" || grade === "A") return p ? "はい、お見事です。" : "おっ、いいね！";
+  if (grade === "B") return p ? "はい、承知しました。" : "はいよ、了解！";
+  return p ? "ええと、もう一度よろしいですか。" : "うん、なるほどね";
 }

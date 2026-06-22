@@ -5,16 +5,21 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend } from "@voicequest/engine";
-import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge } from "@voicequest/engine";
+import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
 import { bootstrap, loadEnv } from "./bootstrap";
 import { makeEventStore } from "@voicequest/store-firestore";
 
-const ep = parseEpisode(
-  JSON.parse(readFileSync(new URL("../../../content/episodes/ep_01_daiki_diner.json", import.meta.url), "utf8")),
-);
+// 다중 에피소드 로드 — Select 화면이 고를 수 있게 전부 메모리에. ep=기본(레거시 호환).
+const EP_DIR = fileURLToPath(new URL("../../../content/episodes/", import.meta.url));
+const EPISODES = new Map<string, Episode>();
+for (const f of readdirSync(EP_DIR).filter((n) => n.endsWith(".json"))) {
+  try { const e = parseEpisode(JSON.parse(readFileSync(resolve(EP_DIR, f), "utf8"))); EPISODES.set(e.id, e); } catch { /* skip 손상 */ }
+}
+const DEFAULT_EP = "ep_01_daiki_diner";
+const ep = EPISODES.get(DEFAULT_EP) ?? [...EPISODES.values()][0]!;
 const { deps, firestoreApp } = bootstrap(ep, new URL("../../../.env", import.meta.url));
 
 // ── 콘텐츠 공장: 씬 생성기(빌드타임·admin 전용) — judge용 로컬 Qwen과 분리된 Anthropic 호출.
@@ -63,14 +68,17 @@ async function genQwen(prompt: string): Promise<string> {
 
 // 캐시 빌드 산출물(음성+후리가나+단어뜻) — runTurn 결과에 붙여 반환
 type CacheLine = { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[] };
-let MANIFEST: { lines: CacheLine[] } | null = null;
-try {
-  MANIFEST = JSON.parse(readFileSync(new URL("../../../content_cache/ep_01/manifest.json", import.meta.url), "utf8")) as { lines: CacheLine[] };
-} catch { MANIFEST = null; }
+// 에피소드별 음성 manifest(없으면 자막) — 캐시 디렉토리 ep_01/ep_02/ep_03
+const MANIFESTS = new Map<string, { lines: CacheLine[] }>();
+const shortOf = (epId: string): string => epId.split("_").slice(0, 2).join("_");
+function loadManifest(epId: string): void {
+  try { MANIFESTS.set(epId, JSON.parse(readFileSync(new URL(`../../../content_cache/${shortOf(epId)}/manifest.json`, import.meta.url), "utf8")) as { lines: CacheLine[] }); } catch { /* 음성 없음 = 자막 */ }
+}
+for (const epId of EPISODES.keys()) loadManifest(epId);
 
 const STAGE = "alpha" as const;
 const CAP = STAGE_LIMITS[STAGE].capacity;
-const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState }>();
+const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string }>();
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
@@ -150,6 +158,11 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: true, stage: STAGE, capacity: CAP, sessions: sessions.size }));
       return;
     }
+    // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
+    if (req.method === "GET" && req.url === "/episodes") {
+      res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id) })) }));
+      return;
+    }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──
     if (req.method === "GET" && req.url?.startsWith("/cache/")) {
       try {
@@ -211,8 +224,8 @@ const server = createServer(async (req, res) => {
         child.on("close", (code) => done({ ok: code === 0, tail: out.slice(-160) }));
         child.on("error", (e) => done({ ok: false, tail: String(e) }));
       });
-      try { MANIFEST = JSON.parse(readFileSync(new URL("../../../content_cache/ep_01/manifest.json", import.meta.url), "utf8")) as { lines: CacheLine[] }; } catch { /* 기존 유지 */ }
-      res.end(JSON.stringify({ ok: built.ok, lines: MANIFEST?.lines.length ?? 0, tail: built.tail }));
+      loadManifest(DEFAULT_EP);
+      res.end(JSON.stringify({ ok: built.ok, lines: MANIFESTS.get(DEFAULT_EP)?.lines.length ?? 0, tail: built.tail }));
       return;
     }
     // ── [M1] 파일럿 게이트 평가(SSOT: engine/releaseGate) — 기술 항목을 실제 산출물로 검증 ──
@@ -379,7 +392,8 @@ const server = createServer(async (req, res) => {
       }
       let sess = sessions.get(sid);
       if (!sess) {
-        sess = { state: initState(ep), usage: { turnsToday: 0, dayStamp: today() }, events: [], energy: { current: 20, max: 20 } };
+        const epId = new URL(req.url, "http://x").searchParams.get("ep") ?? DEFAULT_EP;
+        sess = { state: initState(EPISODES.get(epId) ?? ep), usage: { turnsToday: 0, dayStamp: today() }, events: [], energy: { current: 20, max: 20 }, episodeId: epId };
         sessions.set(sid, sess);
       }
       if (!canSpendTurn(sess.usage, STAGE, today())) {
@@ -387,7 +401,8 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "daily_turn_cap", cap: STAGE_LIMITS[STAGE].dailyTurnCap }));
         return;
       }
-      // 에너지 게이트(⑤) — 실발화 시도 전. 페이싱 장치(과금 게이트 아님).
+      // 에너지 일일 회복(자정 max) + 게이트(⑤) — 페이싱 장치(과금 게이트 아님)
+      if (sess.usage.dayStamp !== today()) sess.energy = recharge(sess.energy, sess.energy.max);
       if (audio.byteLength > 0 && !canStart(sess.energy)) {
         res.statusCode = 429;
         res.end(JSON.stringify({ error: "no_energy", current: sess.energy.current, max: sess.energy.max }));
@@ -402,7 +417,7 @@ const server = createServer(async (req, res) => {
       };
       // OPIc 적응형 난이도(④) — 최근 등급으로 strictness 동적 조정
       const recentGrades = sess.events.filter((e): e is Extract<GameEvent, { type: "turn_spoken" }> => e.type === "turn_spoken").map((e) => e.grade).slice(-5);
-      const { result, state } = await runTurn({ ...deps, store: sessStore }, sess.state, ab, Date.now(), recentGrades);
+      const { result, state } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
       sess.state = state;
       if (result.awaitsUser && result.grade !== "-") {
         sess.usage = recordTurn(sess.usage, today());
@@ -411,8 +426,9 @@ const server = createServer(async (req, res) => {
         costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // 유료 STT 1 + judge(로컬 0원) 카운트
       }
       const norm = (s: string): string => s.replace(/！/g, "!").replace(/？/g, "?").trim();
-      const cl = MANIFEST?.lines.find((l) => norm(l.text) === norm(result.npcLine));
-      const enriched = cl ? { ...result, furigana: cl.furigana, words: cl.words, audioUrl: `/cache/ep_01/${cl.audio}` } : result;
+      const manifest = MANIFESTS.get(sess.episodeId);
+      const cl = manifest?.lines.find((l) => norm(l.text) === norm(result.npcLine));
+      const enriched = cl ? { ...result, furigana: cl.furigana, words: cl.words, audioUrl: `/cache/${shortOf(sess.episodeId)}/${cl.audio}` } : result;
       res.end(JSON.stringify(enriched));
       return;
     }

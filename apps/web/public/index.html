@@ -48,7 +48,7 @@ ruby rt{font-size:.5em;color:var(--hint)}
 <div class="wrap" id="app"></div>
 <script>
 const API = "http://localhost:8787";
-let userId = null, rec = null, recChunks = [];
+let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집';
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function furi(s){ return (s||'').replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>'); }
@@ -86,15 +86,25 @@ function signupView(){
     try{
       const r = await fetch(API+'/auth/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value.trim().toUpperCase(),userId:uid,consent:{overseasTransfer:true,dataProcessing:true}})});
       const j = await r.json();
-      if(j.status==='active'){ userId=uid; talkView(); }
+      if(j.status==='active'){ userId=uid; localStorage.setItem('vq_uid',uid); selectView(); }
       else { app.querySelector('#err').textContent = j.error==='invite_not_found'?'유효하지 않은 코드예요':j.error==='invite_already_redeemed'?'이미 사용된 코드예요':j.error||'동의/정원을 확인하세요'; go.disabled=false; }
     }catch(e){ app.querySelector('#err').textContent='서버 연결 실패: '+e; go.disabled=false; }
   };
 }
 
+function selectView(){
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div class="sub" style="margin-bottom:18px">대화할 장소를 골라요</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
+  fetch(API+'/episodes').then(function(r){return r.json()}).then(function(j){
+    document.getElementById('epCards').innerHTML=(j.episodes||[]).map(function(e){
+      return '<div onclick="startEp(\''+e.id+'\',\''+esc2(e.title).replace(/\x27/g,"")+'\')" style="cursor:pointer;border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin:10px 0;background:#fff"><b style="font-size:17px">'+esc2(e.title)+'</b><div class="sub" style="margin:4px 0 0">'+esc2(e.character)+' · '+e.sceneCount+'씬 · NPC '+((e.npcs||[]).length)+'명'+(e.cached?' · 🔊 음성':' · 자막')+'</div></div>';
+    }).join('')||'에피소드 없음';
+  }).catch(function(){ document.getElementById('epCards').innerHTML='<div class="err">에피소드 로드 실패</div>'; });
+}
+function startEp(epId,title){ currentEp=epId; currentEpTitle=title||epId; talkView(); }
 function talkView(){
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="hdr"><b>다이키 · 라멘집</b><span id="aff" style="color:var(--pink)">♥ 0</span></div>'
+  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span id="aff" style="color:var(--pink)">♥ 0</span></div>'
     + '<div class="log" id="log"><button class="btn" style="max-width:200px;margin:30px auto;display:block" id="enter">입장하기</button></div>'
     + '<button class="mic" id="mic" style="display:none">🎤 눌러서 말하기</button>';
   app.querySelector('#enter').onclick = enter;
@@ -138,7 +148,7 @@ function addBubble(res){
 }
 
 async function postTurn(blob){
-  const r = await fetch(API+'/session/turn?sid='+userId,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body: blob||new Uint8Array(0)});
+  const r = await fetch(API+'/session/turn?sid='+userId+'&ep='+currentEp,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body: blob||new Uint8Array(0)});
   return r.json();
 }
 async function advanceNpc(){
@@ -179,7 +189,7 @@ async function onMic(){
 }
 function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-signupView();
+if(userId){ selectView(); } else { signupView(); }
 </script>
 </body>
 </html>
