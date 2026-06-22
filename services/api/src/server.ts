@@ -275,16 +275,17 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url?.startsWith("/admin/cache-build")) {
       if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
       const cwd = fileURLToPath(new URL("../../../spike/", import.meta.url));
+      const epId = new URL(req.url, "http://x").searchParams.get("ep") ?? DEFAULT_EP;
       const built = await new Promise<{ ok: boolean; tail: string }>((done) => {
-        const child = spawn("pnpm", ["exec", "tsx", "cache-build.ts"], { cwd });
+        const child = spawn("pnpm", ["exec", "tsx", "cache-build.ts", epId], { cwd });
         let out = "";
         child.stdout.on("data", (d) => { out += String(d); });
         child.stderr.on("data", (d) => { out += String(d); });
         child.on("close", (code) => done({ ok: code === 0, tail: out.slice(-160) }));
         child.on("error", (e) => done({ ok: false, tail: String(e) }));
       });
-      loadManifest(DEFAULT_EP);
-      res.end(JSON.stringify({ ok: built.ok, lines: MANIFESTS.get(DEFAULT_EP)?.lines.length ?? 0, tail: built.tail }));
+      loadManifest(epId);
+      res.end(JSON.stringify({ ok: built.ok, ep: epId, lines: MANIFESTS.get(epId)?.lines.length ?? 0, tail: built.tail }));
       return;
     }
     // ── [M1] 파일럿 게이트 평가(SSOT: engine/releaseGate) — 기술 항목을 실제 산출물로 검증 ──
