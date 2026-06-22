@@ -44,7 +44,7 @@
       "modelAnswer": "おすすめは何ですか",
       "beats": [
         { "kind": "npc", "line": "あいよ、ラーメンね！…そうだ、初めてなら今日のおすすめも気になる？" },
-        { "kind": "npc", "line": "ここの味噌ラーメン、まじで最高だよ！", "speaker": "kaede" },
+        { "kind": "npc", "line": "ここの味噌ラーメン、まじで最高だよ！", "speaker": "kaede", "condition": { "minAffinity": 2 } },
         { "kind": "user" }
       ]
     },

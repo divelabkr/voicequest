@@ -2,6 +2,10 @@
   "id": "ep_02_midori_transit",
   "title": "미도리의 역 안내소",
   "character": "midori",
+  "npcs": [
+    { "id": "midori", "name": "미도리", "voiceName": "Aoede", "role": "역 안내원", "persona": "친절하고 침착한 역무원, 또박또박 안내한다" },
+    { "id": "passenger", "name": "승객", "voiceName": "Puck", "role": "옆 승객", "persona": "길을 알려주는 친절한 현지인" }
+  ],
   "guide": {
     "persona": "친절하고 침착한 역 안내원 미도리. 또박또박 안내하고 승객을 안심시킨다.",
     "tone": "공공 정중체(です/ます). 안내·확인 표현 위주, 사무적이되 따뜻하게.",
@@ -33,7 +37,11 @@
       "allowedExpressions": ["何番線ですか", "渋谷は何番線ですか", "どのホームですか"],
       "level": "N5",
       "nextSceneId": "s3_delay",
-      "modelAnswer": "何番線ですか"
+      "modelAnswer": "何番線ですか",
+      "beats": [
+        { "kind": "npc", "line": "はい、渋谷まで一枚でございます。こちら切符です。" },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s3_delay",
@@ -60,7 +68,12 @@
       "allowedExpressions": ["乗り換えはどこですか", "どこで乗り換えますか", "次はどこで乗り換えればいいですか"],
       "level": "N4",
       "nextSceneId": "s5_arrive",
-      "modelAnswer": "乗り換えはどこですか"
+      "modelAnswer": "乗り換えはどこですか",
+      "beats": [
+        { "kind": "npc", "line": "振替輸送でしたら、向かいの中央線をご利用ください。" },
+        { "kind": "npc", "line": "あ、中央線なら僕も行きますよ。ご一緒にどうぞ。", "speaker": "passenger", "condition": { "minAffinity": 3 } },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s5_arrive",
@@ -71,7 +84,11 @@
       "allowedExpressions": ["次は渋谷ですか", "ここで降ります", "渋谷はここですか"],
       "level": "N4",
       "nextSceneId": "s6_thanks",
-      "modelAnswer": "次は渋谷ですか"
+      "modelAnswer": "次は渋谷ですか",
+      "beats": [
+        { "kind": "npc", "line": "まもなく渋谷に到着いたします。お忘れ物のないように。" },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s6_thanks",
@@ -82,7 +99,11 @@
       "allowedExpressions": ["ありがとうございました", "助かりました", "お世話になりました"],
       "level": "N5",
       "nextSceneId": "s7_lost",
-      "modelAnswer": "ありがとうございました"
+      "modelAnswer": "ありがとうございました",
+      "beats": [
+        { "kind": "npc", "line": "とんでもございません。良い一日を。" },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s7_lost",
@@ -97,7 +118,11 @@
         "rubric": "현재 상황·목적지·곤란한 점 중 2가지 이상을 정중체로 자연스럽게 설명",
         "minSentences": 3
       },
-      "modelAnswer": "すみません、道に迷ってしまいました。渋谷駅に行きたいのですが、どの出口から出ればいいか分かりません。地図を見せていただけますか。"
+      "modelAnswer": "すみません、道に迷ってしまいました。渋谷駅に行きたいのですが、どの出口から出ればいいか分かりません。地図を見せていただけますか。",
+      "beats": [
+        { "kind": "npc", "line": "どうなさいましたか？お困りのようですね。" },
+        { "kind": "user" }
+      ]
     }
   ],
   "endings": [

@@ -8,6 +8,7 @@ import type {
   Grade,
   JudgeResult,
   DialogueBeat,
+  BeatCondition,
   LlmPort,
   SttPort,
   TtsPort,
@@ -53,6 +54,11 @@ export async function runTurn(
 
   // ── NPC 능동 / 끼어듦 무시 / 무반응 — 유저 발화를 judge하지 않고 자동 진행 ──
   if (beat.kind !== "user") {
+    // 동적 등장 — 조건(호감도·직전 등급) 미충족이면 이 beat 건너뛰고 다음으로(재귀)
+    const cond = (beat.kind === "npc" || beat.kind === "npc_push") ? beat.condition : undefined;
+    if (cond && !meetsCondition(cond, state.affinity, recentGrades)) {
+      return runTurn(deps, { ...state, beatIndex: state.beatIndex + 1 }, audio, ts, recentGrades);
+    }
     const npcLine = beat.kind === "npc_silent" ? "（…沈黙…）" : beat.line;
     // 다중 NPC — beat.speaker(npc id)로 화자 결정. 없으면 메인 character. voice도 화자 기준.
     const speaker = (beat.kind === "npc" || beat.kind === "npc_push") ? (beat.speaker ?? deps.episode.character) : deps.episode.character;
@@ -162,6 +168,17 @@ export async function runTurn(
     },
     state: adv.state,
   };
+}
+
+// 동적 등장 조건 평가 — 호감도·직전 등급 충족 여부(예: 호감도 2면 단골손님 등장).
+function meetsCondition(c: BeatCondition, affinity: number, recentGrades: Grade[]): boolean {
+  if (c.minAffinity != null && affinity < c.minAffinity) return false;
+  if (c.minGrade != null) {
+    const gv = (g: Grade): number => (g === "S" ? 3 : g === "A" ? 2 : g === "B" ? 1 : 0);
+    const last = recentGrades[recentGrades.length - 1];
+    if (!last || gv(last) < gv(c.minGrade)) return false;
+  }
+  return true;
 }
 
 // TTS 폴백 — 실패 시 자막만(audioUrl 빈)으로 흡수. 외부 호출 try/catch(§9).

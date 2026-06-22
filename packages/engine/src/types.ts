@@ -46,10 +46,18 @@ export interface Scene {
 
 /** 발화 트리 노드 — 사람 대화의 엣지를 표현(음성 게이트는 user에만) */
 export type DialogueBeat =
-  | { kind: "npc"; line: string; speaker?: string }       // NPC 발화(speaker=npc id, 없으면 메인 character)
-  | { kind: "user" }                                       // 유저 발화 대기 → judge
-  | { kind: "npc_push"; line: string; speaker?: string }   // 유저가 끼어들어도 밀어붙임
-  | { kind: "npc_silent"; holdMs: number };                // 듣고도 대답 안 함(침묵 연출)
+  | { kind: "npc"; line: string; speaker?: string; condition?: BeatCondition }       // NPC 발화(speaker=npc id, condition=동적 등장)
+  | { kind: "user" }                                                                  // 유저 발화 대기 → judge
+  | { kind: "npc_push"; line: string; speaker?: string; condition?: BeatCondition }   // 유저가 끼어들어도 밀어붙임
+  | { kind: "npc_silent"; holdMs: number };                                           // 듣고도 대답 안 함(침묵 연출)
+
+/** NPC 동적 등장 조건 — 충족돼야 그 beat가 등장(아니면 건너뜀). "호감도 2면 단골손님 등장" 같은 분기. */
+export interface BeatCondition {
+  /** 이 호감도 이상일 때만 */
+  minAffinity?: number;
+  /** 직전 등급이 이 이상일 때만(S>A>B>C) */
+  minGrade?: Grade;
+}
 
 /** OPIc 준하는 고난이도 챌린지 — 긴 발화·내용·정중도를 rubric으로 평가 */
 export interface SceneChallenge {

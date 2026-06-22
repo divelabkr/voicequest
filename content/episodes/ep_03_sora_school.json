@@ -2,6 +2,10 @@
   "id": "ep_03_sora_school",
   "title": "소라와 방과후",
   "character": "sora",
+  "npcs": [
+    { "id": "sora", "name": "소라", "voiceName": "Leda", "role": "동급생", "persona": "밝고 장난스러운 동급생, 거리감 없이 살갑게 군다" },
+    { "id": "tomo", "name": "토모", "voiceName": "Puck", "role": "같은 반 친구", "persona": "끼어들기 좋아하는 명랑한 친구" }
+  ],
   "guide": {
     "persona": "밝고 장난스러운 동급생 소라. 거리감 없이 살갑게 굴고 잘 웃는다.",
     "tone": "또래 반말(だ체·짧은 형). 친근하되 무례하지 않게, 따뜻한 장난.",
@@ -34,7 +38,11 @@
       "allowedExpressions": ["ゲームしてた", "昨日は寝てた", "勉強してた"],
       "level": "N4",
       "nextSceneId": "s3_lunch",
-      "modelAnswer": "ゲームしてた"
+      "modelAnswer": "ゲームしてた",
+      "beats": [
+        { "kind": "npc", "line": "ねえ、昨日何してたの？" },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s3_lunch",
@@ -45,7 +53,11 @@
       "allowedExpressions": ["いいよ", "一緒に食べよう", "お弁当持ってきた"],
       "level": "N4",
       "nextSceneId": "s4_after",
-      "modelAnswer": "いいよ、一緒に食べよう"
+      "modelAnswer": "いいよ、一緒に食べよう",
+      "beats": [
+        { "kind": "npc", "line": "あ、もう昼だ。お腹すいた〜、一緒に食べようよ。" },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s4_after",
@@ -56,7 +68,12 @@
       "allowedExpressions": ["いいね、行こう", "カラオケ行こう", "今日はちょっと…"],
       "level": "N4",
       "nextSceneId": "s5_feeling",
-      "modelAnswer": "いいね、行こう"
+      "modelAnswer": "いいね、行こう",
+      "beats": [
+        { "kind": "npc", "line": "ねえ、放課後ひま？どっか寄ってこうよ。" },
+        { "kind": "npc", "line": "あ、二人で何の話〜？私も混ぜてよ！", "speaker": "tomo", "condition": { "minAffinity": 3 } },
+        { "kind": "user" }
+      ]
     },
     {
       "id": "s5_feeling",
@@ -71,7 +88,11 @@
         "rubric": "요즘 기분·고민·상대에 대한 마음 중 2가지 이상을 반말로 자연스럽게",
         "minSentences": 3
       },
-      "modelAnswer": "最近さ、ちょっと色々あって疲れてたんだけど、話してると元気出るんだよね。なんか、ありがとな。"
+      "modelAnswer": "最近さ、ちょっと色々あって疲れてたんだけど、話してると元気出るんだよね。なんか、ありがとな。",
+      "beats": [
+        { "kind": "npc", "line": "…なんかさ、最近どうなの？元気にしてる？" },
+        { "kind": "user" }
+      ]
     }
   ],
   "endings": [
