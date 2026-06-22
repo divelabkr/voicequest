@@ -206,7 +206,7 @@ function addBubble(res){
   affEl.textContent='♥ '+res.affinity;
   if(res.affinity>prevAff && affEl.animate){ affEl.animate([{transform:'scale(1)'},{transform:'scale(1.5)'},{transform:'scale(1)'}],{duration:450}); }
   window._prevAff=res.affinity;
-  if(res.progress){ var pe=document.getElementById('prog'); if(pe)pe.textContent='씬 '+res.progress.scene+'/'+res.progress.total; }
+  if(res.progress){ var pe=document.getElementById('prog'); if(pe)pe.textContent='씬 '+res.progress.scene+'/'+res.progress.total+((res.timing&&res.grade&&res.grade!=='-')?(' · '+(res.timing.fast?'⚡':'🤖')+res.timing.ms+'ms'):''); }
   if(res.audioUrl && res.audioUrl.indexOf('/cache/')===0){ try{ new Audio(API+res.audioUrl).play(); }catch(e){} }
 }
 
@@ -251,9 +251,11 @@ async function onMic(){
   rec=null;
   const log=document.getElementById('log');
   log.appendChild(el('<div class="bubble you">(내 발화)</div>'));
-  var think=el('<div class="bubble npc"><span class="wave" style="height:18px;gap:5px"><i style="width:5px"></i><i style="width:5px"></i><i style="width:5px"></i></span></div>'); log.appendChild(think); log.scrollTop=log.scrollHeight; // §7 추임새 — judge 대기 레이턴시 흡수
-  try{ const res = await postTurn(blob); if(think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
-  catch(e){ if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
+  // §7 추임새 흡수 — fast(즉답)는 깜빡임 없이, 느린 LLM 판정만 380ms 뒤 "えーと…"+파형으로 사람처럼 가린다.
+  var think=null; var AZ=['えーと…','うーん…','そうだね…','なるほど…']; var az=AZ[Math.floor(Math.random()*AZ.length)];
+  var thinkT=setTimeout(function(){ think=el('<div class="bubble npc"><span style="opacity:.7">'+az+'</span> <span class="wave" style="height:14px;gap:4px"><i style="width:4px"></i><i style="width:4px"></i><i style="width:4px"></i></span></div>'); log.appendChild(think); log.scrollTop=log.scrollHeight; }, 380);
+  try{ const res = await postTurn(blob); clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
+  catch(e){ clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
   finally{ busy=false; }
 }
 function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

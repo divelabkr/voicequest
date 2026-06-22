@@ -477,7 +477,10 @@ const server = createServer(async (req, res) => {
       };
       // OPIc 적응형 난이도(④) — 최근 등급으로 strictness 동적 조정
       const recentGrades = sess.events.filter((e): e is Extract<GameEvent, { type: "turn_spoken" }> => e.type === "turn_spoken").map((e) => e.grade).slice(-5);
+      const _t0 = Date.now();
       const { result, state } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
+      const turnMs = Date.now() - _t0;
+      if (result.grade !== "-") console.log(`[turn] ${turnMs}ms ${result.reason === "fast_exact_match" ? "⚡fast" : "🤖llm"} grade=${result.grade}`);
       sess.state = state;
       if (result.awaitsUser && result.grade !== "-") {
         sess.usage = recordTurn(sess.usage, today());
@@ -491,7 +494,7 @@ const server = createServer(async (req, res) => {
       const enriched = cl ? { ...result, furigana: cl.furigana, words: cl.words, audioUrl: `/cache/${shortOf(sess.episodeId)}/${cl.audio}` } : result;
       const sessEp2 = EPISODES.get(sess.episodeId) ?? ep;
       const sceneNo = sessEp2.scenes.findIndex((s) => s.id === state.currentSceneId) + 1;
-      res.end(JSON.stringify({ ...enriched, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length } }));
+      res.end(JSON.stringify({ ...enriched, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length }, timing: { ms: turnMs, fast: result.reason === "fast_exact_match" } }));
       return;
     }
     res.statusCode = 404;

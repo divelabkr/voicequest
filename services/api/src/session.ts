@@ -32,6 +32,7 @@ export interface TurnResult {
   nextSceneId: string;
   done: boolean;
   awaitsUser: boolean; // false=NPC 능동(유저 무시), true=유저 판정
+  reason?: string; // judge 경로 — fast_exact_match=코드 즉답 / llm_*=LLM 판정(실시간 측정·연출용)
   speaker?: string; // 발화 NPC id(다중 NPC 챕터 — 없으면 메인 character)
   speakerName?: string; // 화자 표시명
   speakerIsMain?: boolean; // 메인 캐릭터 여부(서브 NPC만 라벨 표시)
@@ -165,6 +166,7 @@ export async function runTurn(
       nextSceneId: adv.state.currentSceneId,
       done: adv.state.done,
       awaitsUser: true,
+      reason: jr.reason,
     },
     state: adv.state,
   };
