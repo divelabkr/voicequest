@@ -24,7 +24,12 @@ export async function judge(input: JudgeInput, llm: LlmPort): Promise<JudgeResul
     };
   }
 
-  // 2) 골격 기반 LLM 판정 (어댑터가 Structured Outputs + Prompt Caching 처리)
+  // 2) fast-path — 명백한 정답(allowedExpressions 정확 매칭)은 LLM 없이 즉시 채점.
+  //    실시간 레이턴시의 핵심: 정답 발화는 judge LLM(수초)을 건너뛰고 STT 시간만 든다.
+  const fast = fastMatch(input);
+  if (fast) return fast;
+
+  // 3) 골격 기반 LLM 판정 (변형·의미충족·OPIc — 어댑터가 Structured Outputs + Prompt Caching 처리)
   const result = await llm.judge(input);
 
   // 3) 미충족(골격 매칭 0 + C)이면 recovery로 흡수 — 틀려도 분기(절대규칙 #5)
@@ -40,6 +45,28 @@ export async function judge(input: JudgeInput, llm: LlmPort): Promise<JudgeResul
  * 판정 정책이라 엔진(도메인)에 둔다. 어댑터 중복 제거 + 한 곳 수정.
  * recovery 트리거 포함: intent 무관 발화를 흡수(스파이크에서 발견한 공통 버그 수정).
  */
+/** 빠른 경로 — allowedExpressions 정확 매칭(명백한 정답)을 LLM 없이 즉시 채점. 애매하면 null→LLM. */
+function fastMatch(input: JudgeInput): JudgeResult | null {
+  if (input.scene.challenge) return null; // OPIc 자유 발화는 rubric 평가 → LLM
+  const norm = (s: string): string => s.replace(/[、。！？!?\s]/g, "");
+  const t = norm(input.transcript);
+  if (!t) return null;
+  for (const expr of input.scene.allowedExpressions) {
+    if (norm(expr) !== t) continue;
+    const polite = /(です|ます|ください|ません|ました)$/.test(input.transcript.trim().replace(/[。！？!?]+$/, ""));
+    return {
+      grade: polite ? "S" : "A",
+      matched: [expr],
+      weaknessTags: polite ? [] : ["politeness"],
+      affinityDelta: polite ? 2 : 1,
+      nextSceneId: "next",
+      reason: "fast_exact_match",
+      category: "normal",
+    };
+  }
+  return null; // 미매칭(변형·의미충족 가능) → LLM 폴백
+}
+
 export const JUDGE_RULES = `당신은 일본어 회화 학습 게임의 판정자입니다.
 오직 scene의 intent와 allowedExpressions 골격으로만 판정합니다. 자유 창작·자유 판단 금지.
 
