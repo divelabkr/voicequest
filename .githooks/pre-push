@@ -1,0 +1,11 @@
+#!/bin/sh
+# 푸시 전 로컬 검증 — CI 빨강을 미리 차단(구조적 재발 방지).
+# 활성화: git config core.hooksPath .githooks  (pnpm install이 자동 설정)
+echo "[pre-push] pnpm verify (tsc + 테스트) 실행…"
+if ! pnpm verify; then
+  echo ""
+  echo "❌ verify 실패 — 푸시를 중단합니다(CI 빨강 방지)."
+  echo "   고친 뒤 다시 push 하거나, 의도적이면 'git push --no-verify'."
+  exit 1
+fi
+echo "[pre-push] ✓ 통과 — 푸시 진행"

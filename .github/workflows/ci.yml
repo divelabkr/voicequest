@@ -4,6 +4,11 @@ on:
     branches: [main, master]
   pull_request:
 
+# 같은 ref에 새 push 오면 진행 중 run 취소(리소스 절약·결과 혼선 방지)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest

@@ -8,7 +8,7 @@
     "test": "turbo test",
     "verify": "pnpm -C packages/engine exec vitest run && pnpm -r exec tsc --noEmit",
     "gate": "pnpm -C spike exec tsx gate-check.ts",
-    "spike:judge": "pnpm --filter @voicequest/spike judge"
+    "postinstall": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
