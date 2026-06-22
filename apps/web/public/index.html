@@ -48,10 +48,11 @@ ruby rt{font-size:.5em;color:var(--hint)}
 <div class="wrap" id="app"></div>
 <script>
 const API = "http://localhost:8787";
-let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집';
+let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집', showFuri = localStorage.getItem('vq_furi') !== '0';
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function furi(s){ return (s||'').replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>'); }
+function toggleFuri(){ showFuri=!showFuri; localStorage.setItem('vq_furi',showFuri?'1':'0'); var b=document.getElementById('furiBtn'); if(b)b.textContent='가나 '+(showFuri?'ON':'OFF'); }
 function showLoading(msg){
   var app=document.getElementById('app');
   var d=document.createElement('div'); d.className='loading'; d.id='loadingOv';
@@ -104,7 +105,7 @@ function selectView(){
 function startEp(epId,title){ currentEp=epId; currentEpTitle=title||epId; talkView(); }
 function talkView(){
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span id="aff" style="color:var(--pink)">♥ 0</span></div>'
+  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span><button id="furiBtn" onclick="toggleFuri()" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;margin-right:10px;cursor:pointer">가나 '+(showFuri?"ON":"OFF")+'</button><span id="aff" style="color:var(--pink)">♥ 0</span></span></div>'
     + '<div class="log" id="log"><button class="btn" style="max-width:200px;margin:30px auto;display:block" id="enter">입장하기</button></div>'
     + '<button class="mic" id="mic" style="display:none">🎤 눌러서 말하기</button>';
   app.querySelector('#enter').onclick = enter;
@@ -115,7 +116,7 @@ async function resultView(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">결과 정리 중…</div></div>';
   let rm={}; try{ rm=await (await fetch(API+'/session/result?sid='+userId)).json(); }catch(e){}
-  const aff=(rm.affinity&&rm.affinity.daiki)||0;
+  const aff=Object.values(rm.affinity||{})[0]||0;
   const n=aff>=6?3:aff>=3?2:1;
   const stars='★★★☆☆'.slice(3-n,6-n);
   const s6=rm.stats6||{};
@@ -124,9 +125,9 @@ async function resultView(){
   const ex=rm.examReadiness||{};
   const jlpt=(ex.jlpt&&ex.jlpt.estimated)||'-';
   const opic=(ex.opic&&ex.opic.estimated)||'-';
-  app.innerHTML='<div class="center" style="text-align:center"><h1>완주!</h1><div class="sub">다이키의 라멘집</div>'
+  app.innerHTML='<div class="center" style="text-align:center"><h1>완주!</h1><div class="sub">'+esc2(currentEpTitle)+'</div>'
     +'<div style="font-size:38px;color:var(--pink);letter-spacing:4px;margin:14px 0">'+stars+'</div>'
-    +'<div class="sub" style="margin-bottom:18px">다이키 호감도 ♥ '+aff+'</div>'
+    +'<div class="sub" style="margin-bottom:18px">호감도 ♥ '+aff+'</div>'
     +'<div style="text-align:left;margin:0 0 20px">'+bars+'</div>'
     +'<div style="display:flex;gap:10px;justify-content:center;margin-bottom:22px"><div style="background:#e6f1fb;color:#0c447c;padding:10px 18px;border-radius:12px;font-size:14px">JLPT 추정<br><b style="font-size:18px">'+jlpt+'</b></div><div style="background:#fbeaf0;color:#72243e;padding:10px 18px;border-radius:12px;font-size:14px">OPIc<br><b style="font-size:18px">'+opic+'</b></div></div>'
     +'<button class="btn" onclick="location.reload()">다시 하기</button></div>';
@@ -136,15 +137,18 @@ function addBubble(res){
   const log = document.getElementById('log');
   const esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
   // [m4] escape 후 ruby 태그만 화이트리스트로 생성 → 후리가나/대사 XSS 차단(향후 UGC 대비)
-  let html = res.furigana
+  let html = (showFuri && res.furigana)
     ? esc(res.furigana).replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>')
     : esc(res.npcLine);
   if(res.words && res.words.length){ html += '<div class="gloss">'+res.words.map(function(w){return esc(w.w)+' · '+esc(w.gloss);}).join('<br>')+'</div>'; }
   var spk=(res.speakerName&&!res.speakerIsMain)?'<div style="font-size:12px;color:var(--pink);margin-bottom:3px;font-weight:500">'+esc(res.speakerName)+'</div>':'';
   log.appendChild(el('<div class="bubble npc">'+spk+html+'</div>'));
   log.scrollTop=log.scrollHeight;
-  document.getElementById('aff').textContent = '♥ '+res.affinity;
-  if(res.audioUrl){ try{ new Audio(API+res.audioUrl).play(); }catch(e){} }
+  var affEl=document.getElementById('aff'); var prevAff=window._prevAff||0;
+  affEl.textContent='♥ '+res.affinity;
+  if(res.affinity>prevAff && affEl.animate){ affEl.animate([{transform:'scale(1)'},{transform:'scale(1.5)'},{transform:'scale(1)'}],{duration:450}); }
+  window._prevAff=res.affinity;
+  if(res.audioUrl && res.audioUrl.indexOf('/cache/')===0){ try{ new Audio(API+res.audioUrl).play(); }catch(e){} }
 }
 
 async function postTurn(blob){
