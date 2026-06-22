@@ -21,13 +21,15 @@ for (const f of readdirSync(EP_DIR).filter((n) => n.endsWith(".json"))) {
 const DEFAULT_EP = "ep_01_daiki_diner";
 const ep = EPISODES.get(DEFAULT_EP) ?? [...EPISODES.values()][0]!;
 
-// 데일리 3마디 풀 — 전 에피소드 표현(중복 제거) + 의미(씬 intent). 게임↔데일리 연계.
+// 데일리 3마디 풀 — 씬당 대표 표현 + 의미(intent) + 후리가나(한글발음용, daily-yomi).
+let DAILY_YOMI: Record<string, string> = {};
+try { DAILY_YOMI = JSON.parse(readFileSync(new URL("../../../content/daily-yomi.json", import.meta.url), "utf8")) as Record<string, string>; } catch { /* 없으면 가나 표현만 한글발음 */ }
 const DAILY_POOL: DailyCard[] = [];
 {
   const seen = new Set<string>();
   for (const epx of EPISODES.values()) for (const sc of epx.scenes) {
-    const expr = sc.allowedExpressions[0]; // 씬당 대표 1개 — 의미 다양성(같은 뜻 중복 방지)
-    if (expr && !seen.has(expr)) { seen.add(expr); DAILY_POOL.push(makeCard(expr, sc.intent, `${epx.id}/${sc.id}`)); }
+    const expr = sc.allowedExpressions[0]; // 씬당 대표 1개 — 의미 다양성
+    if (expr && !seen.has(expr)) { seen.add(expr); DAILY_POOL.push(makeCard(expr, sc.intent, `${epx.id}/${sc.id}`, DAILY_YOMI[expr])); }
   }
 }
 // 데일리 발화 채점 — 단일 표현 매칭(judge 골격과 별개). 정확=S·포함=A·문자겹침=B·그외=C.

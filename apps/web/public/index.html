@@ -134,7 +134,7 @@ function dailyCard(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">오늘의 3마디 · '+(st.idx+1)+'/'+st.cards.length+' · 🔥 '+st.streak+'</div>'
     +'<div style="font-size:26px;margin:26px 0 4px;font-weight:600">'+esc2(c.expression)+'</div>'
-    +((showFuri && !/[一-龯々]/.test(c.expression))?'<div style="font-size:15px;color:var(--blue);margin-bottom:6px">'+esc2(yomiHangul(c.expression))+'</div>':'')
+    +(showFuri?'<div style="font-size:15px;color:var(--blue);margin-bottom:6px">'+esc2(yomiHangul(c.yomi||c.expression))+'</div>':'')
     +'<div class="sub" style="margin-bottom:30px">'+esc2(c.meaning)+'</div>'
     +'<button class="mic" id="dmic">🎤 눌러서 따라 말하기</button>'
     +'<div id="dresult" style="margin-top:16px;min-height:26px"></div></div>';

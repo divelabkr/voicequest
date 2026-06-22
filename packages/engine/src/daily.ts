@@ -9,6 +9,7 @@ export const SRS_INTERVALS_DAYS = [0, 1, 2, 4, 8, 16];
 export interface DailyCard {
   expression: string; // 발화 표현(일본어)
   meaning: string; // 한국어 뜻
+  yomi?: string; // 후리가나(히라가나) — 한자 한글발음 변환용
   sceneRef?: string; // 출처(에피소드/씬) — 게임과 연계
   box: number; // 0~5 라이트너 박스(높을수록 잘 암)
   dueDay: number; // 다음 복습 day
@@ -48,6 +49,6 @@ export function completeToday(state: DailyState, now: number): DailyState {
 }
 
 /** 신규 카드 생성 — 에피소드 표현을 데일리 풀에 편입(게임↔데일리 연계). */
-export function makeCard(expression: string, meaning: string, sceneRef?: string): DailyCard {
-  return { expression, meaning, sceneRef, box: 0, dueDay: 0 };
+export function makeCard(expression: string, meaning: string, sceneRef?: string, yomi?: string): DailyCard {
+  return { expression, meaning, yomi, sceneRef, box: 0, dueDay: 0 };
 }
