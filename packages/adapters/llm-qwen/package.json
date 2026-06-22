@@ -1,0 +1,16 @@
+{
+  "name": "@voicequest/llm-qwen",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@voicequest/engine": "workspace:*",
+    "openai": "^6.44.0"
+  }
+}

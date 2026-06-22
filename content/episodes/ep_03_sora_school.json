@@ -1,0 +1,82 @@
+{
+  "id": "ep_03_sora_school",
+  "title": "소라와 방과후",
+  "character": "sora",
+  "guide": {
+    "persona": "밝고 장난스러운 동급생 소라. 거리감 없이 살갑게 굴고 잘 웃는다.",
+    "tone": "또래 반말(だ체·짧은 형). 친근하되 무례하지 않게, 따뜻한 장난.",
+    "world": "일본 고등학교, 평범한 등하교와 방과후.",
+    "guardrails": ["비속어·무례 금지", "연애 과속 금지(우정~썸 선)", "캐릭터 OOC 금지", "정중체 강요 금지(또래 맥락)"]
+  },
+  "scenes": [
+    {
+      "id": "s1_morning",
+      "intent": "친구에게 아침 인사하기(반말)",
+      "situation": "교실에서 소라와 마주친다",
+      "register": "casual",
+      "requiredSlots": ["인사"],
+      "allowedExpressions": ["おはよう", "おはよ", "やっほー"],
+      "level": "N5",
+      "nextSceneId": "s2_chat",
+      "modelAnswer": "おはよう",
+      "beats": [
+        { "kind": "npc", "line": "あ、おはよう！" },
+        { "kind": "npc_push", "line": "今日もギリギリじゃん、走ってきたの？まあ座りなよ。" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s2_chat",
+      "intent": "어제 뭐 했는지 답하기(반말)",
+      "situation": "어제 뭐 하고 지냈는지 가볍게 잡담",
+      "register": "casual",
+      "requiredSlots": ["근황"],
+      "allowedExpressions": ["ゲームしてた", "昨日は寝てた", "勉強してた"],
+      "level": "N4",
+      "nextSceneId": "s3_lunch",
+      "modelAnswer": "ゲームしてた"
+    },
+    {
+      "id": "s3_lunch",
+      "intent": "점심 같이 먹자는 말에 답하기",
+      "situation": "점심 같이 먹자고 권한다",
+      "register": "casual",
+      "requiredSlots": ["응답"],
+      "allowedExpressions": ["いいよ", "一緒に食べよう", "お弁当持ってきた"],
+      "level": "N4",
+      "nextSceneId": "s4_after",
+      "modelAnswer": "いいよ、一緒に食べよう"
+    },
+    {
+      "id": "s4_after",
+      "intent": "방과후 권유에 답하기",
+      "situation": "방과후에 뭐 할지 정한다",
+      "register": "casual",
+      "requiredSlots": ["응답"],
+      "allowedExpressions": ["いいね、行こう", "カラオケ行こう", "今日はちょっと…"],
+      "level": "N4",
+      "nextSceneId": "s5_feeling",
+      "modelAnswer": "いいね、行こう"
+    },
+    {
+      "id": "s5_feeling",
+      "intent": "요즘 기분·속마음을 자유롭게 말하기(반말 감정)",
+      "situation": "둘만 남은 방과후, 솔직한 속마음을 털어놓는다",
+      "register": "casual",
+      "requiredSlots": ["자유응답"],
+      "allowedExpressions": [],
+      "level": "OPIc",
+      "challenge": {
+        "type": "opic",
+        "rubric": "요즘 기분·고민·상대에 대한 마음 중 2가지 이상을 반말로 자연스럽게",
+        "minSentences": 3
+      },
+      "modelAnswer": "最近さ、ちょっと色々あって疲れてたんだけど、話してると元気出るんだよね。なんか、ありがとな。"
+    }
+  ],
+  "endings": [
+    { "id": "crush", "minAffinity": 6, "title": "두근거리는 사이" },
+    { "id": "friend", "minAffinity": 3, "title": "좋은 친구" },
+    { "id": "awkward", "minAffinity": 0, "title": "어색한 사이" }
+  ]
+}

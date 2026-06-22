@@ -1,0 +1,22 @@
+{
+  "name": "@voicequest/spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "judge": "tsx judge-bench.ts",
+    "demo": "tsx turn-demo.ts",
+    "challenge": "tsx challenge-test.ts",
+    "cachebuild": "tsx cache-demo.ts"
+  },
+  "dependencies": {
+    "@voicequest/api": "workspace:*",
+    "@voicequest/engine": "workspace:*",
+    "@voicequest/llm-claude-haiku": "workspace:*",
+    "@voicequest/llm-gemini-flash": "workspace:*",
+    "@voicequest/llm-qwen": "workspace:*",
+    "@voicequest/stt-deepgram": "workspace:*",
+    "kuroshiro": "^1.2.0",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0"
+  }
+}

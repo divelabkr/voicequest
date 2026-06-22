@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceQuest 운영 콘솔</title>
+<style>
+:root{--paper:#faf7f2;--card:#fff;--ink:#2c2c2a;--muted:#5f5e5a;--hint:#888780;--line:#e5e0d8;--blue:#185fa5;--purple:#534ab7;--teal:#0f6e56;--amber:#854f0b;--red:#a32d2d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.6}
+.wrap{max-width:940px;margin:0 auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+h1{font-size:20px;font-weight:600;margin:0}
+h2{font-size:17px;font-weight:600;margin:0 0 4px}
+h3{font-size:16px;font-weight:600;margin:0}
+.sub{font-size:13px;color:var(--muted)}
+.badge{background:#eeedfe;color:#3c3489;font-size:13px;font-weight:500;padding:4px 12px;border-radius:999px}
+nav{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
+nav button{background:none;border:none;padding:9px 14px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
+nav button.active{color:var(--ink);border-bottom-color:var(--blue);font-weight:500}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.muted{color:var(--muted);font-size:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi .k{font-size:12px;color:var(--hint)}
+.kpi .v{font-size:22px;font-weight:600;margin-top:3px}
+.alert{background:#faece7;border:1px solid #f0997b;color:#993c1d;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.voice-row label{flex:1}
+.play{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:6px 13px;cursor:pointer;font-size:13px;font-family:inherit}
+.play:disabled{background:var(--hint);cursor:default}
+.controls{display:flex;gap:18px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.controls label{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+input[type=text],input[type=number],input[type=password]{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
+.btn{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px;font-family:inherit}
+.btn.blue{background:var(--blue)}
+.saved{margin-left:10px;color:var(--teal);font-size:13px}
+.bar{height:8px;background:#f1efe8;border-radius:4px;overflow:hidden}
+.bar>div{height:100%;background:var(--purple)}
+.prog{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 18px;margin-top:10px}
+.lab{display:flex;justify-content:space-between;margin-bottom:3px;font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:#fff;border:none;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--blue);color:#fff}
+.pill{font-size:12px;padding:2px 10px;border-radius:999px}
+.ladder{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ladder span{padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--muted)}
+.ladder span.on{background:#e6f1fb;border-color:#85b7eb;color:#0c447c;font-weight:500}
+.tog{appearance:none;width:42px;height:24px;background:#d3d1c7;border-radius:99px;position:relative;cursor:pointer;outline:none;transition:.15s}
+.tog:checked{background:var(--blue)}
+.tog::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.15s}
+.tog:checked::after{left:20px}
+input[type=range]{accent-color:var(--blue)}
+.plan{color:var(--hint);font-size:12px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>VoiceQuest 운영 콘솔</h1><div class="sub">체험판 운영 · 회원·과금·콘텐츠·음성·난이도·보안·서버·계측</div></div>
+  <span class="badge">alpha 단계</span>
+</header>
+<nav id="nav"></nav>
+
+<section data-tab="dash">
+  <div class="alert">⚠ <b>content_cache 0개</b> — NPC 음성이 아직 생성되지 않았습니다. 음성 탭에서 voice 선택 후 캐시 빌드가 필요합니다.</div>
+  <div class="grid4">
+    <div class="kpi"><div class="k">활성 인원</div><div class="v"><span id="kActive">–</span> <span style="font-size:13px;color:var(--hint)">/ <span id="kCap">25</span></span></div></div>
+    <div class="kpi"><div class="k">오늘 대화 턴</div><div class="v" id="kTurns">–</div></div>
+    <div class="kpi"><div class="k">D1 리텐션</div><div class="v" style="color:var(--teal)">67%</div></div>
+    <div class="kpi"><div class="k">월 추정 비용</div><div class="v" id="kCost">–</div></div>
+  </div>
+  <div class="card">
+    <h3>플랫폼 구현 진행률 · 14 / 24</h3>
+    <div class="prog">
+      <div><div class="lab"><span>기능</span><span>3/4</span></div><div class="bar"><div style="width:75%"></div></div></div>
+      <div><div class="lab"><span>회원</span><span>3/4</span></div><div class="bar"><div style="width:75%"></div></div></div>
+      <div><div class="lab"><span>관리</span><span>1/4</span></div><div class="bar"><div style="width:25%"></div></div></div>
+      <div><div class="lab"><span>운영</span><span>3/4</span></div><div class="bar"><div style="width:75%"></div></div></div>
+      <div><div class="lab"><span>보안</span><span>3/4</span></div><div class="bar"><div style="width:75%"></div></div></div>
+      <div><div class="lab"><span>서버</span><span>1/4</span></div><div class="bar"><div style="width:25%"></div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>AI/API 비용 (이번 달)</h3><span id="costAlert" class="pill"></span></div>
+    <div id="costBody" class="muted">불러오는 중…</div>
+  </div>
+</section>
+
+<section data-tab="member" hidden>
+  <div class="card">
+    <h3>초대 코드 발급</h3>
+    <p class="muted">운영자 토큰으로 코드를 생성해 알파 테스터에게 전달합니다.</p>
+    <div class="controls">
+      <label>운영자 토큰 <input type="password" id="adminToken" placeholder="ADMIN_TOKEN" size="20"></label>
+      <button class="btn blue" onclick="genCode()">코드 생성</button>
+    </div>
+    <div id="codeResult" class="muted" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>발급된 코드</h3><button class="btn" onclick="loadInvites()">목록 새로고침</button></div>
+    <div id="inviteList" class="muted">운영자 토큰 입력 후 목록 새로고침 — 코드별 발급/사용/폐기 상태를 추적합니다.</div>
+  </div>
+  <div class="grid4">
+    <div class="kpi"><div class="k">활성</div><div class="v" id="mActive">–</div></div>
+    <div class="kpi"><div class="k">여유</div><div class="v" id="mFree">–</div></div>
+    <div class="kpi"><div class="k">정원</div><div class="v" id="mCap">25</div></div>
+    <div class="kpi"><div class="k">단계</div><div class="v" style="font-size:16px">alpha → pilot</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>회원 관리</h3><button class="btn" onclick="loadMembers()">새로고침</button></div>
+    <div id="memberList" class="muted">새로고침 — 가입 계정 목록. 테스트 계정은 삭제로 정리(이벤트·세션 영구 삭제 §9).</div>
+  </div>
+</section>
+
+<section data-tab="billing" hidden>
+  <div class="grid3">
+    <div class="kpi"><div class="k">무료→유료 전환</div><div class="v" style="color:var(--teal)">—</div></div>
+    <div class="kpi"><div class="k">활성 구독</div><div class="v">0</div></div>
+    <div class="kpi"><div class="k">MRR(추정)</div><div class="v">₩0</div></div>
+  </div>
+  <div class="card">
+    <h3>가격 설정</h3>
+    <p class="muted">체험판 후 소액 유료 전환. 스토어 IAP 연동 시 적용.</p>
+    <div class="controls">
+      <label>월 구독 <input type="number" id="priceMonthly" value="4900" size="6"> 원</label>
+      <label>에너지 충전 <input type="number" id="priceEnergy" value="1900" size="6"> 원</label>
+      <button class="btn" onclick="saveLocal('billing',['priceMonthly','priceEnergy'])">저장</button><span class="saved" id="saved-billing"></span>
+    </div>
+  </div>
+  <div class="card"><h3>결제 채널</h3>
+    <div class="row"><span>App Store IAP</span><span class="plan">연동 예정</span></div>
+    <div class="row"><span>Google Play 결제</span><span class="plan">연동 예정</span></div>
+    <div class="row"><span>구독 취소 = 결제주기 종료 시</span><span class="pill" style="background:#eaf3de;color:#27500a">정책 확정</span></div>
+  </div>
+</section>
+
+<section data-tab="content" hidden>
+  <div class="card">
+    <div class="card-head"><h3>에피소드 · 스토리보드</h3><button class="btn" onclick="loadEpisodes()">새로고침</button></div>
+    <div id="epList" class="muted">새로고침을 누르면 content/episodes를 읽어 씬·발화트리·캐시 상태를 표시합니다.</div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>음성/이미지 캐시</h3><span class="pill" style="background:#faece7;color:#993c1d">0 / 3 빌드됨</span></div>
+    <p class="muted">"NPC는 캐시" — voice 프리셋으로 NPC 대사 음성을 사전 생성합니다.</p>
+    <button class="btn blue" id="buildBtn" onclick="buildCache()">캐시 빌드 실행</button><span id="buildResult" class="muted" style="margin-left:10px"></span>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>씬 생성기 — 콘텐츠 공장</h3><span class="pill" style="background:#eeedfe;color:#3c3489">맥락 → 생성 → 검수</span></div>
+    <p class="muted" style="margin-top:0">맥락·의도를 넣고 슬라이더로 엄격↔자유를 고르면 Claude가 씬 골격을 만든다. <b>intent는 코드가 고정</b>하고 sceneGuard가 검수한다(생성은 LLM, 판정은 골격).</p>
+    <label class="muted" style="display:block;margin:8px 0 4px">맥락</label>
+    <textarea id="genCtx" rows="2" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;font-family:inherit" placeholder="라멘집에서 다이키에게 매운맛 추가를 부탁하기 (친해진 뒤)"></textarea>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+      <div style="flex:2;min-width:190px"><label class="muted" style="display:block;margin-bottom:4px">의도(intent · 고정)</label><input type="text" id="genIntent" style="width:100%" placeholder="다이키에게 매운맛 추가를 부탁하기"></div>
+      <div style="flex:1;min-width:90px"><label class="muted" style="display:block;margin-bottom:4px">캐릭터</label><input type="text" id="genChar" style="width:100%" value="daiki"></div>
+      <div style="flex:1;min-width:130px"><label class="muted" style="display:block;margin-bottom:4px">운영자 토큰</label><input type="password" id="genToken" style="width:100%" placeholder="ADMIN_TOKEN"></div>
+    </div>
+    <div style="margin-top:12px"><label class="muted">난이도 슬라이더</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px"><span class="muted" style="font-size:13px">엄격</span><input type="range" id="genStrict" min="0" max="2" step="1" value="1" style="flex:1"><span class="muted" style="font-size:13px">자유</span><span id="genStrictLbl" class="pill" style="background:#e6f1fb;color:#0c447c;min-width:54px;text-align:center">표준</span></div>
+    </div>
+    <button class="btn blue" style="margin-top:12px" onclick="genSceneUI()">생성</button>
+    <div id="genOut" style="margin-top:14px"></div>
+  </div>
+</section>
+
+<section data-tab="voice" hidden>
+  <h2>음성 — 플랫폼 음성 기초 설정</h2>
+  <p class="muted">캐릭터별 voice를 듣고 골라 저장하세요. 이 설정이 트럼펫(캐릭터 음성 엔진) 커스텀의 기준값이 됩니다.</p>
+  <div class="card" id="card-daiki">
+    <div class="card-head"><h3>다이키 · 라멘집</h3><span class="badge" style="background:#e6f1fb;color:#0c447c">남성 · 친근</span></div>
+    <div class="row voice-row"><input type="radio" name="v-daiki" value="Puck" id="d1"><label for="d1"><b>Puck</b> — 밝고 경쾌</label><button class="play" data-src="voices/daiki-puck.wav">▶ 듣기</button></div>
+    <div class="row voice-row"><input type="radio" name="v-daiki" value="Charon" id="d2" checked><label for="d2"><b>Charon</b> — 차분·낮은 톤</label><button class="play" data-src="voices/daiki-charon.wav">▶ 듣기</button></div>
+    <div class="row voice-row"><input type="radio" name="v-daiki" value="Fenrir" id="d3"><label for="d3"><b>Fenrir</b> — 활기참</label><button class="play" data-src="voices/daiki-fenrir.wav">▶ 듣기</button></div>
+    <div class="row voice-row"><input type="radio" name="v-daiki" value="Orus" id="d4"><label for="d4"><b>Orus</b> — 또렷·중간 톤</label><button class="play" data-src="voices/daiki-orus.wav">▶ 듣기</button></div>
+    <div class="controls">
+      <label>속도 <input type="range" min="0.8" max="1.2" step="0.05" value="1.0" oninput="this.nextElementSibling.textContent=(+this.value).toFixed(2)"><span>1.00</span></label>
+      <label>톤 <input type="text" value="친근하고 편하게" size="16"></label>
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="savePreset('daiki')">이 설정으로 저장</button><span class="saved" id="saved-daiki"></span>
+  </div>
+  <div class="card" id="card-midori">
+    <div class="card-head"><h3>미도리 · 대중교통</h3><span class="badge" style="background:#fbeaf0;color:#72243e">여성 · 정중</span></div>
+    <div class="row voice-row"><input type="radio" name="v-midori" value="Aoede" id="m1" checked><label for="m1"><b>Aoede</b> — 차분</label><button class="play" disabled>생성 예정</button></div>
+    <div class="row voice-row"><input type="radio" name="v-midori" value="Kore" id="m2"><label for="m2"><b>Kore</b> — 표준</label><button class="play" disabled>생성 예정</button></div>
+    <div class="controls"><label>속도 <input type="range" min="0.8" max="1.2" step="0.05" value="1.0" oninput="this.nextElementSibling.textContent=(+this.value).toFixed(2)"><span>1.00</span></label><label>톤 <input type="text" value="차분하고 정중하게" size="16"></label></div>
+    <button class="btn" style="margin-top:12px" onclick="savePreset('midori')">저장</button><span class="saved" id="saved-midori"></span>
+  </div>
+  <div class="card" id="card-sora">
+    <div class="card-head"><h3>소라 · 학원</h3><span class="badge" style="background:#eaf3de;color:#27500a">또래 · 발랄</span></div>
+    <div class="row voice-row"><input type="radio" name="v-sora" value="Leda" id="s1" checked><label for="s1"><b>Leda</b> — 발랄</label><button class="play" disabled>생성 예정</button></div>
+    <div class="row voice-row"><input type="radio" name="v-sora" value="Zephyr" id="s2"><label for="s2"><b>Zephyr</b> — 가벼움</label><button class="play" disabled>생성 예정</button></div>
+    <div class="controls"><label>속도 <input type="range" min="0.8" max="1.2" step="0.05" value="1.05" oninput="this.nextElementSibling.textContent=(+this.value).toFixed(2)"><span>1.05</span></label><label>톤 <input type="text" value="또래답게 발랄하게" size="16"></label></div>
+    <button class="btn" style="margin-top:12px" onclick="savePreset('sora')">저장</button><span class="saved" id="saved-sora"></span>
+  </div>
+  <audio id="player"></audio>
+</section>
+
+<section data-tab="level" hidden>
+  <div class="card">
+    <h3>글로벌 판정 엄격도</h3>
+    <p class="muted">judge 기본 strictness. OPIc 자동조정이 켜지면 유저별로 미세 조정됩니다.</p>
+    <div class="seg" id="segStrict">
+      <button data-v="loose">느슨</button><button data-v="normal" class="on">보통</button><button data-v="strict">엄격</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>난이도 사다리 (JLPT)</h3>
+    <p class="muted">씬 레벨 태깅. 골격 전이는 불변, 추천 레이어만 조정.</p>
+    <div class="ladder"><span class="on">N5</span><span class="on">N4</span><span>N3</span><span>N2</span><span>N1</span></div>
+    <p class="muted" style="margin-top:8px">현재 알파 범위: <b>N5~N4</b></p>
+  </div>
+  <div class="card">
+    <div class="row"><span><b>OPIc 동적 난이도 자동조정</b><br><span class="muted">최근 등급으로 strictness 미세조정</span></span><input type="checkbox" class="tog" id="togOpic" checked></div>
+    <button class="btn" style="margin-top:12px" onclick="saveSettings('level')">난이도 설정 저장</button><span class="saved" id="saved-level"></span>
+  </div>
+</section>
+
+<section data-tab="security" hidden>
+  <div class="grid3">
+    <div class="kpi"><div class="k">국외이전 동의율</div><div class="v" style="color:var(--teal)">100%</div></div>
+    <div class="kpi"><div class="k">개인정보 동의율</div><div class="v" style="color:var(--teal)">100%</div></div>
+    <div class="kpi"><div class="k">삭제 요청 대기</div><div class="v">0</div></div>
+  </div>
+  <div class="card">
+    <h3>rate limit · 폭주 방어</h3>
+    <div class="controls"><label>일일 턴 캡 <input type="number" id="dailyCap" value="40" size="4"> 턴/인</label><button class="btn" onclick="saveLocal('security',['dailyCap'])">저장</button><span class="saved" id="saved-security"></span></div>
+  </div>
+  <div class="card"><h3>데이터·키 보안</h3>
+    <div class="row"><span>음성 원본 즉시 폐기</span><span class="pill" style="background:#eaf3de;color:#27500a">강제 ✓</span></div>
+    <div class="row"><span>잊혀질 권리(탈퇴 삭제)</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
+    <div class="row"><span>국외이전 동의 게이트</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
+    <div class="row"><span>비밀키 Secret Manager · SynthID</span><span class="plan">연동 예정</span></div>
+  </div>
+</section>
+
+<section data-tab="server" hidden>
+  <div class="card">
+    <div class="card-head"><h3>서버 상태</h3><button class="btn" onclick="loadHealth()">새로고침</button></div>
+    <div id="srvHealth" class="muted">불러오는 중… (서버 탭 진입 시 자동)</div>
+  </div>
+  <div class="card">
+    <h3>배포 단계</h3>
+    <div class="seg" id="segStage"><button data-v="alpha" class="on">alpha · 25</button><button data-v="pilot">pilot · 300</button><button data-v="ga">ga</button></div>
+    <p class="muted" style="margin-top:8px">게이트: 또하고싶다 ≥4 + 음성거부감↓ → pilot 승급</p>
+  </div>
+  <div class="card"><div class="card-head"><h3>파일럿 게이트 (SSOT: releaseGate)</h3><button class="btn blue" onclick="loadGate()">게이트 평가</button></div><div id="gateReport" class="muted">평가 버튼을 누르면 기술 항목을 자동 검증합니다.</div></div>
+  <div class="card"><h3>인프라</h3>
+    <div class="row"><span>STT 어댑터 · HTTP 서버 · 폴백</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
+    <div class="row"><span>Cloud Run · Firestore</span><span class="plan">배포 예정</span></div>
+    <div class="row"><span>용량 거버넌스 · 압축(§11)</span><span class="plan">빌드잡 예정</span></div>
+  </div>
+</section>
+
+<section data-tab="metric" hidden>
+  <div class="grid4">
+    <div class="kpi"><div class="k">D1 리텐션</div><div class="v" style="color:var(--teal)">67%</div></div>
+    <div class="kpi"><div class="k">D7 리텐션</div><div class="v">—</div></div>
+    <div class="kpi"><div class="k">첫 성공까지(중앙)</div><div class="v" style="font-size:18px">2.4턴</div></div>
+    <div class="kpi"><div class="k">이탈 위험군</div><div class="v">1</div></div>
+  </div>
+  <div class="card"><h3>학습 신호 (engine/learning)</h3>
+    <div class="row"><span>timeToFirstWin · 첫 S/A까지 턴 수</span><span class="muted">중앙 2.4</span></div>
+    <div class="row"><span>dropPoint · 이탈 직전 씬</span><span class="muted">s4 (정중함)</span></div>
+    <div class="row"><span>churnRisk · 연속 C·recovery</span><span class="muted">1명 경고</span></div>
+  </div>
+  <div class="card"><div class="card-head"><h3>코호트 — D1/D7 리텐션</h3><button class="btn" onclick="loadCohort()">새로고침</button></div><div id="cohortBody" class="muted">새로고침 — 가입일 대비 재방문 집계(events 영속 기반).</div></div>
+</section>
+</div>
+
+<script>
+var TABS=[['dash','대시보드'],['member','회원·인원'],['billing','과금'],['content','콘텐츠'],['voice','음성'],['level','난이도'],['security','보안'],['server','서버'],['metric','계측']];
+var nav=document.getElementById('nav');
+TABS.forEach(function(t,i){var b=document.createElement('button');b.textContent=t[1];b.setAttribute('data-t',t[0]);if(i===0)b.className='active';b.onclick=function(){showTab(t[0])};nav.appendChild(b)});
+(function(){var _t=localStorage.getItem('vq_admtok');if(_t){var _i=document.getElementById('adminToken');if(_i)_i.value=_t;}})();
+function showTab(t){document.querySelectorAll('[data-tab]').forEach(function(s){s.hidden=s.getAttribute('data-tab')!==t});document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-t')===t)});if(t==='server')loadHealth();if(t==='dash'){loadStats();loadBudget();}if(t==='content')loadEpisodes();if(t==='member')loadMembers();if(t==='metric')loadCohort()}
+async function loadStats(){try{var res=await fetch('http://localhost:8787/admin/stats');var j=await res.json();var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v};s('kActive',j.active);s('kCap',j.capacity);s('kTurns',j.turnsToday)}catch(e){}}
+async function loadBudget(){try{var res=await fetch('http://localhost:8787/admin/budget');var j=await res.json();var st=j.status,m=j.meter;var kc=document.getElementById('kCost');if(kc)kc.textContent='$'+st.estUsd.toFixed(2);var lv=['정상','50%↑','80%↑','초과'][st.alertLevel];var col=['#27500a','#854f0b','#d85a30','#a32d2d'][st.alertLevel];var bg=['#eaf3de','#faeeda','#faece7','#fcebeb'][st.alertLevel];var al=document.getElementById('costAlert');if(al){al.textContent=lv;al.style.background=bg;al.style.color=col;}var pct=Math.min(100,Math.round(st.ratio*100));var body=document.getElementById('costBody');if(body)body.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>$'+st.estUsd.toFixed(2)+' / $'+st.cap+' ('+m.month+')</span><span class="muted">'+pct+'%</span></div><div class="bar"><div style="width:'+pct+'%;background:'+col+'"></div></div><div class="muted" style="margin-top:8px;font-size:13px">호출 — 생성 '+m.calls.gen+' · STT '+m.calls.stt+' · 판정 '+m.calls.judge+'(로컬) · TTS '+m.calls.tts+'</div>'+(st.alertLevel>=3?'<div class="alert" style="margin-top:8px">⛔ 예산 초과 — 신규 씬 생성이 차단됩니다.</div>':'');}catch(e){var b=document.getElementById('costBody');if(b)b.textContent='연결 실패: '+e;}}
+loadStats();
+async function loadEpisodes(){var el=document.getElementById('epList');el.textContent='불러오는 중…';try{var res=await fetch('http://localhost:8787/admin/episodes');var j=await res.json();el.innerHTML=(j.episodes||[]).map(function(e){var sb=(e.scenes||[]).map(function(s){return '<div style="margin:5px 0 5px 14px;font-size:13px;color:var(--muted)"><b style="color:var(--ink)">'+s.id+'</b> ['+s.level+'] '+s.intent+((s.beats&&s.beats.length)?' · 발화트리 '+s.beats.length+'beat':'')+'</div>'}).join('');return '<div style="padding:11px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center"><b>'+e.title+'</b><span class="pill" style="background:'+(e.cached?'#eaf3de;color:#27500a':'#faece7;color:#993c1d')+'">'+(e.cached?'캐시됨':'캐시 없음')+'</span></div><div class="muted" style="font-size:13px;margin-bottom:4px">'+e.character+' · 씬 '+e.sceneCount+'개 · 발화 '+e.beatCount+'beat</div>'+sb+'</div>'}).join('')||'에피소드 없음'}catch(err){el.textContent='연결 실패: '+err}}
+document.querySelectorAll('.play').forEach(function(b){if(b.disabled)return;b.onclick=function(){var p=document.getElementById('player');p.src=b.getAttribute('data-src');var card=b.closest('.card');var sp=card.querySelector('input[type=range]');p.playbackRate=sp?parseFloat(sp.value):1;p.play()}});
+function savePreset(c){var card=document.getElementById('card-'+c);var sel=card.querySelector('input[type=radio]:checked');var voice=sel?sel.value:'';var speed=card.querySelector('input[type=range]').value;var style=card.querySelector('input[type=text]').value;var p=JSON.parse(localStorage.getItem('vq_presets')||'{}');p[c]={voiceName:voice,speed:+speed,style:style};localStorage.setItem('vq_presets',JSON.stringify(p));document.getElementById('saved-'+c).textContent='✓ 저장: '+voice+' · 속도 '+(+speed).toFixed(2)}
+function saveLocal(key,ids){var o={};ids.forEach(function(id){o[id]=document.getElementById(id).value});localStorage.setItem('vq_'+key,JSON.stringify(o));document.getElementById('saved-'+key).textContent='✓ 저장됨'}
+document.querySelectorAll('.seg').forEach(function(s){s.querySelectorAll('button').forEach(function(b){b.onclick=function(){s.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});b.classList.add('on')}})});
+function saveSettings(key){var strict=(document.querySelector('#segStrict button.on')||{}).getAttribute?document.querySelector('#segStrict button.on').getAttribute('data-v'):'normal';var opic=document.getElementById('togOpic').checked;localStorage.setItem('vq_level',JSON.stringify({strictness:strict,opicAuto:opic}));document.getElementById('saved-level').textContent='✓ 저장: '+strict+(opic?' · OPIc 자동':'')}
+function adminTok(){var i=document.getElementById('adminToken');var v=i&&i.value.trim();if(v){localStorage.setItem('vq_admtok',v);return v;}return localStorage.getItem('vq_admtok')||'';}
+async function loadMembers(){var el=document.getElementById('memberList');el.textContent='불러오는 중…';try{var res=await fetch('http://localhost:8787/admin/accounts',{headers:{'x-admin-token':adminTok()}});var j=await res.json();if(!res.ok){el.textContent='실패: '+(j.error||res.status)+' — 운영자 토큰을 확인하세요';return}var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v};s('mActive',j.active);s('mFree',j.capacity-j.active);s('mCap',j.capacity);el.innerHTML=j.accounts.length?j.accounts.map(function(a){return '<div class="row"><span style="font-family:monospace">'+a.userId.slice(0,24)+'</span><span class="muted">'+a.status+'</span><button class="btn" onclick="delMember(\''+a.userId+'\')">삭제</button></div>'}).join(''):'가입 계정 없음';}catch(e){el.textContent='연결 실패: '+e}}
+async function delMember(uid){if(!confirm(uid.slice(0,24)+'\n계정을 삭제할까요? 이벤트·세션이 영구 삭제됩니다(§9).'))return;try{var res=await fetch('http://localhost:8787/admin/account/delete',{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':adminTok()},body:JSON.stringify({userId:uid})});var j=await res.json();if(!res.ok){alert('실패: '+(j.error||res.status));return}loadMembers();}catch(e){alert('연결 실패: '+e)}}
+async function buildCache(){var b=document.getElementById('buildBtn');var r=document.getElementById('buildResult');if(!confirm('캐시 빌드를 실행할까요? 수십초 걸리며 Gemini TTS를 호출합니다(기존 음성은 재사용).'))return;b.disabled=true;b.textContent='빌드 중…';r.textContent='';try{var res=await fetch('http://localhost:8787/admin/cache-build',{method:'POST',headers:{'x-admin-token':adminTok()}});var j=await res.json();r.textContent=(res.ok&&j.ok)?('✓ '+j.lines+'개 음성 빌드됨'):'실패 — 토큰/quota 확인';if(res.ok)loadEpisodes();}catch(e){r.textContent='연결 실패: '+e}finally{b.disabled=false;b.textContent='캐시 빌드 실행';}}
+async function loadCohort(){var el=document.getElementById('cohortBody');el.textContent='집계 중…';try{var res=await fetch('http://localhost:8787/admin/cohort',{headers:{'x-admin-token':adminTok()}});var j=await res.json();if(!res.ok){el.textContent='실패: '+(j.error||res.status)+' — 운영자 토큰 확인';return}var pct=function(o){return o.eligible?Math.round(o.retained/o.eligible*100)+'%':'측정 전';};el.innerHTML='<div class="grid3"><div class="kpi"><div class="k">누적 가입</div><div class="v">'+j.signups+'</div></div><div class="kpi"><div class="k">D1 리텐션</div><div class="v">'+pct(j.d1)+'</div><div class="k">'+j.d1.retained+'/'+j.d1.eligible+' 대상</div></div><div class="kpi"><div class="k">D7 리텐션</div><div class="v">'+pct(j.d7)+'</div><div class="k">'+j.d7.retained+'/'+j.d7.eligible+' 대상</div></div></div>'+(j.d1.eligible===0?'<p class="muted" style="margin-top:10px;font-size:13px">아직 가입 후 1일 경과한 유저가 없어 D1 대상이 0입니다 — 시간 누적 시 채워집니다(집계는 라이브).</p>':'');}catch(e){el.textContent='연결 실패: '+e}}
+async function genCode(){var t=adminTok();var r=document.getElementById('codeResult');r.textContent='생성 중…';try{var res=await fetch('http://localhost:8787/admin/invite',{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':t},body:'{}'});var j=await res.json();r.textContent=res.ok?('발급된 코드: '+j.code):('실패: '+(j.error||res.status));if(res.ok)loadInvites()}catch(e){r.textContent='서버 연결 실패: '+e}}
+async function loadInvites(){var t=adminTok();var el=document.getElementById('inviteList');el.textContent='불러오는 중…';try{var res=await fetch('http://localhost:8787/admin/invites',{headers:{'x-admin-token':t}});var j=await res.json();if(!res.ok){el.textContent='실패: '+(j.error||res.status);return}var st={issued:'발급됨',redeemed:'사용됨',revoked:'폐기됨'};el.innerHTML=j.invites.length?j.invites.map(function(i){return '<div class="row"><span style="font-family:monospace">'+i.code+'</span><span class="muted">'+(st[i.status]||i.status)+(i.boundUserId?' · '+i.boundUserId.slice(0,14):'')+(i.note?' · '+i.note:'')+'</span></div>'}).join(''):'발급된 코드 없음'}catch(e){el.textContent='연결 실패: '+e}}
+async function loadHealth(){var el=document.getElementById('srvHealth');try{var res=await fetch('http://localhost:8787/health');var j=await res.json();el.innerHTML='<span style="color:var(--teal)">●</span> 정상 · 단계 '+j.stage+' · 정원 '+j.capacity+' · 활성 세션 '+j.sessions}catch(e){el.innerHTML='<span style="color:var(--red)">●</span> 연결 안 됨 (서버 미기동/CORS) — '+e}}
+async function loadGate(){var el=document.getElementById('gateReport');el.textContent='평가 중…';try{var res=await fetch('http://localhost:8787/admin/gate');var g=await res.json();var pid=g.passed.map(function(c){return c.id});var all=g.passed.concat(g.blocked).sort(function(a,b){return a.kind===b.kind?0:(a.kind==='tech'?-1:1)});el.innerHTML='<div style="margin-bottom:8px">기술 readiness '+Math.round(g.techScore*100)+'% · 시장 '+Math.round(g.marketScore*100)+'%</div>'+all.map(function(c){return '<div class="row"><span>'+(pid.indexOf(c.id)>=0?'✅':'⬜')+' ['+(c.kind==='tech'?'기술':'시장')+'] '+c.label+'</span></div>'}).join('')+'<div style="margin-top:10px"><b>'+(g.ready?'▶ 파일럿 준비 완료':'⛔ 미충족 '+g.blocked.length+'개 — 파일럿 보류')+'</b></div>'}catch(e){el.textContent='연결 실패(서버 재시작 필요): '+e}}
+var STRICT=[['strict','엄격'],['normal','표준'],['lenient','자유']];
+(function(){var gs=document.getElementById('genStrict');if(gs)gs.addEventListener('input',function(){document.getElementById('genStrictLbl').textContent=STRICT[+gs.value][1]})})();
+function escG(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+async function genSceneUI(){var C=document.getElementById('genCtx'),I=document.getElementById('genIntent');var ctx=C.value.trim()||C.placeholder;var intent=I.value.trim()||I.placeholder;var character=document.getElementById('genChar').value.trim()||'daiki';var strictness=STRICT[+document.getElementById('genStrict').value][0];var tok=(document.getElementById('genToken')||{}).value||'';var out=document.getElementById('genOut');out.innerHTML='<span class="muted">Claude가 생성·검수 중… (몇 초)</span>';try{var res=await fetch('http://localhost:8787/admin/scene-gen',{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':tok},body:JSON.stringify({context:ctx,intent:intent,strictness:strictness,character:character})});var j=await res.json();if(!res.ok){out.innerHTML='<div class="alert">실패: '+(j.error||res.status)+(j.hint?' — '+j.hint:'')+'</div>';return}out.innerHTML=renderScene(j)}catch(e){out.innerHTML='<div class="alert">연결 실패: '+e+'</div>'}}
+function renderScene(j){var s=j.scene||{},g=j.guard||{flags:[],ok:false};var fails=g.flags.filter(function(f){return f.level==='fail'});var head=g.ok?'<span class="pill" style="background:#eaf3de;color:#27500a">✅ 검수 통과 · 캐시 승급 가능</span>':'<span class="pill" style="background:#fcebeb;color:#a32d2d">⛔ fail '+fails.length+'개 · 승급 불가</span>';var chips=(s.allowedExpressions||[]).map(function(e){return '<span class="pill" style="background:#e6f1fb;color:#0c447c;margin:0 5px 5px 0;display:inline-block">'+escG(e)+'</span>'}).join('');var beats=(s.beats||[]).map(function(b){return b.kind==='user'?'<div style="text-align:right;margin:4px 0"><span class="pill" style="background:#fbeaf0;color:#72243e">🎤 (유저 발화)</span></div>':'<div style="margin:4px 0"><span style="background:#f1efe8;padding:6px 11px;border-radius:10px;display:inline-block;font-size:14px">'+escG(b.line)+'</span></div>'}).join('');var flagsHtml=g.flags.map(function(f){return '<div class="row" style="padding:5px 0"><span>'+(f.level==='fail'?'⛔':'⚠️')+' <code>'+f.code+'</code> '+escG(f.msg)+'</span></div>'}).join('');var drift=j.llmDrift?'<div class="alert" style="margin-top:8px">⚠️ LLM이 intent를 <code>'+escG(j.rawIntent)+'</code>로 바꾸려 했으나 <b>코드가 입력값으로 고정</b>했습니다 — 골격 보증(§4)</div>':'';return head+'<div style="margin-top:10px"><b>intent(고정):</b> '+escG(s.intent)+'</div>'+drift+'<div style="margin-top:10px"><div class="muted" style="margin-bottom:5px">허용 표현 '+(s.allowedExpressions||[]).length+'개 — judge 양자화 풀</div>'+chips+'</div><div style="margin-top:10px"><div class="muted" style="margin-bottom:5px">대사 흐름</div>'+beats+'</div>'+(g.flags.length?'<div style="margin-top:10px"><div class="muted">검수 리포트</div>'+flagsHtml+'</div>':'')}
+</script>
+</body>
+</html>

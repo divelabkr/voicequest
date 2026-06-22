@@ -1,0 +1,18 @@
+{
+  "name": "@voicequest/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@voicequest/engine": "workspace:*",
+    "@voicequest/stt-deepgram": "workspace:*",
+    "@voicequest/llm-qwen": "workspace:*",
+    "@voicequest/store-firestore": "workspace:*"
+  }
+}

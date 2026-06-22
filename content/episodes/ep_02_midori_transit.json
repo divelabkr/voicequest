@@ -1,0 +1,108 @@
+{
+  "id": "ep_02_midori_transit",
+  "title": "미도리의 역 안내소",
+  "character": "midori",
+  "guide": {
+    "persona": "친절하고 침착한 역 안내원 미도리. 또박또박 안내하고 승객을 안심시킨다.",
+    "tone": "공공 정중체(です/ます). 안내·확인 표현 위주, 사무적이되 따뜻하게.",
+    "world": "도쿄 전철역 안내소, 출퇴근 시간대의 분주함.",
+    "guardrails": ["무례·반말 금지", "역무원 역할 이탈 금지", "과도한 사적 대화 금지", "허위 노선 정보 금지"]
+  },
+  "scenes": [
+    {
+      "id": "s1_ticket",
+      "intent": "목적지까지 표를 사기",
+      "situation": "창구에서 목적지를 말하고 표를 산다",
+      "register": "polite",
+      "requiredSlots": ["목적지"],
+      "allowedExpressions": ["渋谷まで一枚お願いします", "渋谷までお願いします", "渋谷まで一枚ください"],
+      "level": "N5",
+      "nextSceneId": "s2_platform",
+      "modelAnswer": "渋谷まで一枚お願いします",
+      "beats": [
+        { "kind": "npc", "line": "いらっしゃいませ、どちらまでですか？" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s2_platform",
+      "intent": "타는 곳·노선을 묻기",
+      "situation": "몇 번 플랫폼인지 확인한다",
+      "register": "polite",
+      "requiredSlots": ["승강장"],
+      "allowedExpressions": ["何番線ですか", "渋谷は何番線ですか", "どのホームですか"],
+      "level": "N5",
+      "nextSceneId": "s3_delay",
+      "modelAnswer": "何番線ですか"
+    },
+    {
+      "id": "s3_delay",
+      "intent": "지연 안내를 듣고 되묻거나 대처하기",
+      "situation": "전철 지연 안내가 흘러나온다",
+      "register": "polite",
+      "requiredSlots": ["대처"],
+      "allowedExpressions": ["どのくらい遅れますか", "わかりました", "どうすればいいですか"],
+      "level": "N4",
+      "nextSceneId": "s4_transfer",
+      "modelAnswer": "どのくらい遅れますか",
+      "beats": [
+        { "kind": "npc", "line": "お客様、申し訳ございません。" },
+        { "kind": "npc_push", "line": "ただいま人身事故の影響で、山手線が約15分遅れております。振替輸送もご利用いただけます。" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s4_transfer",
+      "intent": "환승 방법을 묻기",
+      "situation": "어디서 갈아타는지 확인한다",
+      "register": "polite",
+      "requiredSlots": ["환승"],
+      "allowedExpressions": ["乗り換えはどこですか", "どこで乗り換えますか", "次はどこで乗り換えればいいですか"],
+      "level": "N4",
+      "nextSceneId": "s5_arrive",
+      "modelAnswer": "乗り換えはどこですか"
+    },
+    {
+      "id": "s5_arrive",
+      "intent": "하차·도착을 확인하기",
+      "situation": "목적지에 다 왔는지 확인한다",
+      "register": "polite",
+      "requiredSlots": ["하차"],
+      "allowedExpressions": ["次は渋谷ですか", "ここで降ります", "渋谷はここですか"],
+      "level": "N4",
+      "nextSceneId": "s6_thanks",
+      "modelAnswer": "次は渋谷ですか"
+    },
+    {
+      "id": "s6_thanks",
+      "intent": "도움에 감사 인사하기",
+      "situation": "안내에 고마움을 전한다",
+      "register": "polite",
+      "requiredSlots": ["인사"],
+      "allowedExpressions": ["ありがとうございました", "助かりました", "お世話になりました"],
+      "level": "N5",
+      "nextSceneId": "s7_lost",
+      "modelAnswer": "ありがとうございました"
+    },
+    {
+      "id": "s7_lost",
+      "intent": "길을 잃어 상황을 설명하고 도움을 요청하기(자유)",
+      "situation": "출구를 못 찾아 곤란한 상황을 길게 설명한다",
+      "register": "polite",
+      "requiredSlots": ["자유응답"],
+      "allowedExpressions": [],
+      "level": "OPIc",
+      "challenge": {
+        "type": "opic",
+        "rubric": "현재 상황·목적지·곤란한 점 중 2가지 이상을 정중체로 자연스럽게 설명",
+        "minSentences": 3
+      },
+      "modelAnswer": "すみません、道に迷ってしまいました。渋谷駅に行きたいのですが、どの出口から出ればいいか分かりません。地図を見せていただけますか。"
+    }
+  ],
+  "endings": [
+    { "id": "regular", "minAffinity": 6, "title": "베테랑 여행자" },
+    { "id": "friendly", "minAffinity": 3, "title": "무사 도착" },
+    { "id": "neutral", "minAffinity": 0, "title": "겨우 도착" }
+  ]
+}

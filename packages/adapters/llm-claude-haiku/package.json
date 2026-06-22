@@ -1,0 +1,13 @@
+{
+  "name": "@voicequest/llm-claude-haiku",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
+    "zod": "^4.4.3",
+    "@voicequest/engine": "workspace:*"
+  }
+}

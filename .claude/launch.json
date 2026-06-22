@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "adminweb",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8090", "--directory", "/Users/yongj/Documents/Playground/voicequest/apps/admin/public"],
+      "port": 8090
+    },
+    {
+      "name": "webapp",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8096", "--directory", "/Users/yongj/Documents/Playground/voicequest/apps/web/public"],
+      "port": 8096
+    }
+  ]
+}

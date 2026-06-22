@@ -1,0 +1,108 @@
+{
+  "id": "ep_01_daiki_diner",
+  "title": "다이키의 라멘집",
+  "character": "daiki",
+  "scenes": [
+    {
+      "id": "s1_order_entry",
+      "intent": "점원에게 인원 수를 전달하고 자리를 안내받기",
+      "requiredSlots": ["인원수"],
+      "allowedExpressions": ["一人です", "ひとり", "1人です"],
+      "level": "N5",
+      "nextSceneId": "s2_order",
+      "modelAnswer": "一人です",
+      "beats": [
+        { "kind": "npc", "line": "いらっしゃいませ！" },
+        { "kind": "npc_push", "line": "あ、今ちょっと混んでてね…まあまあ、立ち話もなんだし、座って座って" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s2_order",
+      "intent": "라멘을 주문하기",
+      "requiredSlots": ["메뉴"],
+      "allowedExpressions": ["ラーメンをください", "ラーメン、お願いします", "ラーメンで"],
+      "level": "N5",
+      "nextSceneId": "s3_recommend",
+      "modelAnswer": "ラーメンをください",
+      "beats": [
+        { "kind": "npc", "line": "お、座れた？じゃあ注文決めよっか。何にする？" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s3_recommend",
+      "intent": "추천을 묻거나 받아들이기",
+      "requiredSlots": ["응답"],
+      "allowedExpressions": ["おすすめは何ですか", "じゃあ、それで", "お願いします"],
+      "level": "N4",
+      "nextSceneId": "s4_chat",
+      "modelAnswer": "おすすめは何ですか",
+      "beats": [
+        { "kind": "npc", "line": "あいよ、ラーメンね！…そうだ、初めてなら今日のおすすめも気になる？" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s4_chat",
+      "intent": "맛에 대한 감상을 말하기",
+      "requiredSlots": ["감상"],
+      "allowedExpressions": ["おいしいです", "とてもおいしいです", "うまいです"],
+      "level": "N5",
+      "nextSceneId": "s5_check",
+      "modelAnswer": "おいしいです",
+      "beats": [
+        { "kind": "npc", "line": "はい、お待たせ！アツアツのラーメンだよ。…食べてみて、どう？" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s5_check",
+      "intent": "계산을 요청하기",
+      "requiredSlots": ["계산"],
+      "allowedExpressions": ["お会計、お願いします", "いくらですか", "おいくらですか"],
+      "level": "N4",
+      "nextSceneId": "s6_farewell",
+      "modelAnswer": "お会計、お願いします",
+      "beats": [
+        { "kind": "npc", "line": "おっ、きれいに完食だね！ありがとう。お会計する？" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s6_farewell",
+      "intent": "작별 인사를 하기",
+      "requiredSlots": ["인사"],
+      "allowedExpressions": ["ごちそうさまでした", "また来ます", "ありがとうございました"],
+      "level": "N4",
+      "nextSceneId": "s7_deep_talk",
+      "modelAnswer": "ごちそうさまでした",
+      "beats": [
+        { "kind": "npc", "line": "はい、ちょうどいただきました！今日はありがとね" },
+        { "kind": "user" }
+      ]
+    },
+    {
+      "id": "s7_deep_talk",
+      "intent": "다이키의 질문에 자유롭게 답하기(자기소개·일본/가게 인상)",
+      "requiredSlots": ["자유응답"],
+      "allowedExpressions": [],
+      "level": "OPIc",
+      "challenge": {
+        "type": "opic",
+        "rubric": "이름·출신·일본(또는 이 가게)에 대한 인상 중 2가지 이상을 정중체로 자연스럽게",
+        "minSentences": 3
+      },
+      "modelAnswer": "私は韓国から来ました。日本のラーメンが大好きで、特にこのお店は最高です。また絶対に来ます。",
+      "beats": [
+        { "kind": "npc", "line": "そういえば、君どこから来たの？日本の感想とか、よかったら聞かせてよ" },
+        { "kind": "user" }
+      ]
+    }
+  ],
+  "endings": [
+    { "id": "regular", "minAffinity": 6, "title": "단골이 되다" },
+    { "id": "friendly", "minAffinity": 3, "title": "또 오세요" },
+    { "id": "neutral", "minAffinity": 0, "title": "평범한 한 끼" }
+  ]
+}

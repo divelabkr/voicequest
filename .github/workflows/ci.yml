@@ -1,0 +1,24 @@
+name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # 회귀 가드: 엔진 테스트 + 전체 타입체크 (통과 필수)
+      - run: pnpm verify
+      # 파일럿 게이트 판정 — 미충족은 정상(파일럿 전), 리포트만 남김
+      - name: Pilot gate report
+        run: pnpm gate || echo "::notice::게이트 미충족(파일럿 전 정상) — 위 항목 참고"

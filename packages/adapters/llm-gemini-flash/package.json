@@ -1,0 +1,12 @@
+{
+  "name": "@voicequest/llm-gemini-flash",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "@voicequest/engine": "workspace:*"
+  }
+}
