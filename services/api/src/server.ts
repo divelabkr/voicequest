@@ -6,9 +6,10 @@ import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "nod
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId } from "@voicequest/engine";
-import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, LlmGenPort } from "@voicequest/engine";
+import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
+import { makeGenPort, genScene } from "./scene-gen";
 import { bootstrap, loadEnv } from "./bootstrap";
 import { makeEventStore } from "@voicequest/store-firestore";
 
@@ -48,47 +49,8 @@ const { deps, firestoreApp } = bootstrap(ep, new URL("../../../.env", import.met
 //    "생성은 LLM, 판정은 골격"(§4): intent는 입력값으로 강제 고정하고 sceneGuard로 검수한다.
 const GEN_ENV = loadEnv(new URL("../../../.env", import.meta.url));
 const ANTHROPIC_KEY = GEN_ENV.ANTHROPIC_KEY ?? GEN_ENV.ANTHROPIC_API_KEY ?? "";
-const BAND_HINT: Record<Strictness, string> = {
-  strict: "허용표현 1~2개(정답만), beats 짧고 정형(2개). 시험 모드.",
-  normal: "허용표현 3~5개, beats 적당히 변주(3~5개).",
-  lenient: "허용표현 6개+(구어·반말·동의어), beats 풍부·감정적(5~7개). 단 자유대화 아님.",
-};
-async function genScene(context: string, intent: string, strictness: Strictness, character: string): Promise<Partial<Scene>> {
-  const prompt = `너는 일본어 학습 게임 콘텐츠 디자이너다. 아래로 씬 골격 1개를 JSON으로만 출력.
-캐릭터: ${character}
-맥락: "${context}"
-의도(intent): "${intent}"  ← 이 값을 그대로 복사. 절대 바꾸지 마라.
-난이도(strictness): ${strictness} — ${BAND_HINT[strictness]}
-규칙: allowedExpressions(일본어)·beats만 생성. beats는 npc 선창으로 시작하고 user 비트를 최소 1개 포함.
-JSON: {"intent":"${intent}","allowedExpressions":["..."],"beats":[{"kind":"npc","line":"..."},{"kind":"user"}]}
-JSON만, 설명 없이.`;
-  // Qwen 극한 — 키 있으면 Anthropic 품질, 없으면 무료 로컬 Qwen(Ollama). 콘텐츠 공장도 비용 0 가능.
-  const text = await genPort.generate(prompt);
-  const m = text.match(/\{[\s\S]*\}/); // 앞뒤 설명이 섞여도 JSON 본체만 추출
-  return JSON.parse(m ? m[0] : "{}") as Partial<Scene>;
-}
-async function genAnthropic(prompt: string): Promise<string> {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: "claude-opus-4-8", max_tokens: 900, messages: [{ role: "user", content: prompt }] }),
-  });
-  if (!r.ok) throw new Error(`anthropic_${r.status}`);
-  const j = (await r.json()) as { content?: Array<{ text?: string }> };
-  return j.content?.[0]?.text ?? "{}";
-}
-async function genQwen(prompt: string): Promise<string> {
-  const r = await fetch("http://localhost:11434/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model: "qwen3-coder:30b", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" } }),
-  });
-  if (!r.ok) throw new Error(`qwen_${r.status}`);
-  const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return j.choices?.[0]?.message?.content ?? "{}";
-}
-// 콘텐츠 생성 포트 — genScene은 LlmGenPort만 의존(공급자 모름·교체 가능). 키 있으면 Anthropic, 없으면 무료 Qwen.
-const genPort: LlmGenPort = { generate: ANTHROPIC_KEY ? genAnthropic : genQwen };
+// 콘텐츠 공장 — gen helper는 scene-gen.ts로 분리(우아함[4/4] 안전 분리). 공급자는 LlmGenPort 뒤.
+const genPort = makeGenPort(ANTHROPIC_KEY);
 
 // 캐시 빌드 산출물(음성+후리가나+단어뜻) — runTurn 결과에 붙여 반환
 type CacheLine = { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[] };
@@ -361,7 +323,7 @@ const server = createServer(async (req, res) => {
       const bgScene = checkBudget(costMeter);
       if (!bgScene.withinCap) { res.statusCode = 429; res.end(JSON.stringify({ error: "budget_exceeded", estUsd: Math.round(bgScene.estUsd * 100) / 100, cap: bgScene.cap })); return; }
       try {
-        const raw = await genScene(body.context, body.intent, body.strictness, body.character ?? "daiki");
+        const raw = await genScene(body.context, body.intent, body.strictness, body.character ?? "daiki", genPort);
         costMeter = recordCall(costMeter, "gen"); // 유료 opus 호출 1건 기록
         const llmGuard = validateGeneratedScene(raw, { expectedIntent: body.intent, strictness: body.strictness });
         // intent 골격 고정 — LLM이 흔들어도 입력값으로 강제 덮어씀(고정은 프롬프트가 아니라 코드가 보증)
