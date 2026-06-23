@@ -159,7 +159,7 @@ export async function runTurn(
   // 직전 발화에 대한 ack 반응 — 다음 씬의 실제 선창은 beats 폴링이 잇는다(placeholder 노출 제거).
   const npcLine =
     jr.nextSceneId === "recovery" ? "もう一度どうぞ"
-      : adv.state.done ? (scene.register === "polite" ? "ご利用ありがとうございました。またどうぞ。" : "また来てね！") : ackLine(jr.grade, scene.register);
+      : adv.state.done ? (scene.register === "polite" ? "ご利用ありがとうございました。またどうぞ。" : "また来てね！") : ackLine(jr.grade, scene.register, deps.episode.ackLines);
   const audioUrl = await safeSynth(deps.tts,npcLine, deps.episode.character);
   await deps.store.append({
     type: "turn_spoken",
@@ -220,9 +220,11 @@ function deflectionLine(tone: "gentle" | "firm" | "cold"): string {
 }
 
 // 직전 발화 반응(grade + register) — 정중체 캐릭터(미도리)와 반말(다이키·소라) 톤 분리.
-function ackLine(grade: string, register?: "polite" | "casual"): string {
-  const p = register === "polite";
-  if (grade === "S" || grade === "A") return p ? "はい、お見事です。" : "おっ、いいね！";
-  if (grade === "B") return p ? "はい、承知しました。" : "はいよ、了解！";
+function ackLine(grade: string, register?: "polite" | "casual", ackLines?: { sa: string; b: string; c: string }): string {
+  const group = grade === "S" || grade === "A" ? "sa" : grade === "B" ? "b" : "c";
+  if (ackLines) return ackLines[group]; // 에피소드 데이터 우선(콘텐츠 데이터화 — 캐릭터 톤)
+  const p = register === "polite"; // 폴백 — register 기본 톤(데이터 없는 레거시 에피소드)
+  if (group === "sa") return p ? "はい、お見事です。" : "おっ、いいね！";
+  if (group === "b") return p ? "はい、承知しました。" : "はいよ、了解！";
   return p ? "ええと、もう一度よろしいですか。" : "うん、なるほどね";
 }

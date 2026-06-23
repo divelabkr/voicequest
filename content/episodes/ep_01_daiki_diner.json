@@ -2,6 +2,7 @@
   "id": "ep_01_daiki_diner",
   "title": "다이키의 라멘집",
   "character": "daiki",
+  "ackLines": { "sa": "おっ、やるねえ！", "b": "うん、悪くない", "c": "ん、もう一回いこっか" },
   "npcs": [
     { "id": "daiki", "name": "다이키", "voiceName": "Fenrir", "role": "라멘집 주인", "persona": "활기차고 친근한 동네 라멘집 사장" },
     { "id": "kaede", "name": "카에데", "voiceName": "Charon", "role": "단골손님", "persona": "옆자리 단골, 참견 좋아하는 친근한 누나" }

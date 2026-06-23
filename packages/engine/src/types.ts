@@ -115,6 +115,8 @@ export interface Episode {
   guide?: GenerationGuide;
   scenes: Scene[];
   endings: Ending[];
+  /** 직전 발화 반응 대사(grade군별 sa/b/c) — 캐릭터 톤. 없으면 register 기본 폴백(콘텐츠 데이터화) */
+  ackLines?: { sa: string; b: string; c: string };
 }
 
 export interface JudgeInput {
