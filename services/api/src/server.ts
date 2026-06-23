@@ -230,6 +230,9 @@ const server = createServer(async (req, res) => {
         if (full !== CACHE_ROOT && !full.startsWith(CACHE_ROOT + "/")) { res.statusCode = 403; res.end("{}"); return; }
         const buf = readFileSync(full);
         res.setHeader("Content-Type", full.endsWith(".wav") ? "audio/wav" : full.endsWith(".m4a") ? "audio/mp4" : "application/octet-stream");
+        // 캐시 자산은 빌드타임 고정(cache-build 멱등 → 파일명=내용 불변) → 클라 1년 immutable 캐시.
+        // 재다운로드 0(추임새 연쇄·NPC 반복 재생 시 대역폭·레이턴시 제거 — 캐시화 핵심).
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         res.end(buf);
       } catch { res.statusCode = 404; res.end("{}"); }
       return;
