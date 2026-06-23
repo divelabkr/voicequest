@@ -256,11 +256,11 @@ async function onMic(){
   // §7 추임새 흡수 — 발화 끝 즉시 NPC 음성 추임새(うーん…)를 연쇄 재생하며 LLM 판정을 병렬로 돌린다.
   // fast(즉답)는 추임새 1개로 끝, 느린 LLM은 응답까지 추임새 연쇄 → 현재 추임새 끝나면 본 대사로 끊김 없이 이음.
   var aizu=window._aizuchi||[]; var aiStop=false, curAi=null;
-  (function loopAi(i){ if(aiStop||!aizu.length)return; var a=new Audio(API+aizu[i%aizu.length]); curAi=a; a.onended=function(){ if(!aiStop)loopAi(i+1); }; a.play().catch(function(){}); })(0);
+  (function loopAi(i){ if(aiStop||!aizu.length)return; var a=new Audio(API+aizu[i%aizu.length]); a.playbackRate=1.2; curAi=a; a.onended=function(){ if(!aiStop)loopAi(i+1); }; a.play().catch(function(){}); })(0);
   var think=null; var AZ=['えーと…','うーん…','そうだね…','なるほど…']; var az=AZ[Math.floor(Math.random()*AZ.length)];
   var thinkT=setTimeout(function(){ think=el('<div class="bubble npc"><span style="opacity:.7">'+az+'</span> <span class="wave" style="height:14px;gap:4px"><i style="width:4px"></i><i style="width:4px"></i><i style="width:4px"></i></span></div>'); log.appendChild(think); log.scrollTop=log.scrollHeight; }, 380);
   try{ const res = await postTurn(blob); aiStop=true;
-    if(curAi&&!curAi.ended&&!curAi.paused){ await new Promise(function(r){ curAi.addEventListener('ended',r,{once:true}); setTimeout(r,900); }); } // 현재 추임새 끝나면 본 대사(자연 연결)
+    if(curAi&&!curAi.ended&&!curAi.paused){ await new Promise(function(r){ var t=setInterval(function(){ try{curAi.volume=Math.max(0,curAi.volume-0.15);}catch(e){} if(!curAi||curAi.volume<=0||curAi.ended){ clearInterval(t); try{curAi.pause();}catch(e){} r(); } },40); setTimeout(function(){ clearInterval(t); try{curAi.pause();}catch(e){} r(); },420); }); } // 응답 오면 현재 추임새 ~0.4s 페이드아웃 후 본 대사(겹침 방지+자연 연결)
     clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
   catch(e){ aiStop=true; clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
   finally{ busy=false; }
