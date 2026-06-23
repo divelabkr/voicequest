@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
@@ -272,6 +272,17 @@ const server = createServer(async (req, res) => {
         if (nowDay >= sDay + 7) { d7e++; if ([...days].some((d) => d > sDay && d <= sDay + 7)) d7r++; }
       }
       res.end(JSON.stringify({ signups, d1: { eligible: d1e, retained: d1r }, d7: { eligible: d7e, retained: d7r } }));
+      return;
+    }
+    // ── 콘텐츠 피드백(④ 데이터 재활용) — 씬별 오답률 집계(어느 씬 어렵나 → 작가가 콘텐츠 개선) ──
+    if (req.method === "GET" && req.url?.startsWith("/admin/scene-stats")) {
+      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      const all: GameEvent[] = [];
+      const evFile = (uid: string): string => resolve(EVENTS_DIR, uid.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) + ".jsonl");
+      for (const acc of accounts.values()) {
+        try { for (const l of readFileSync(evFile(acc.userId), "utf8").split("\n")) { if (l) all.push(JSON.parse(l) as GameEvent); } } catch { /* 활동 없음 */ }
+      }
+      res.end(JSON.stringify({ scenes: sceneStats(all) }));
       return;
     }
     // ── 콘텐츠: 캐시 빌드 실행(멱등 재사용) — spike/cache-build를 잡으로 ──

@@ -19,6 +19,7 @@ export { adjustStrictness, recommendLevel, JLPT_LADDER } from "./opic";
 export { deflectionTone, affinityPenalty, isHardBlock, needsDeflection } from "./safety";
 export type { DeflectionTone } from "./safety";
 export { buildReadModel } from "./readModel";
+export { sceneStats, type SceneStat } from "./content-stats";
 export { timeToFirstWin, dropPoint, churnRisk } from "./learning";
 export { scoreToStars, branchUp, worldlineId } from "./review";
 export { pickCallback, fillSlots } from "./callback";
