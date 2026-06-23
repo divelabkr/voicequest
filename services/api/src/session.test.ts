@@ -22,6 +22,8 @@ const ep = parseEpisode({
 });
 
 const stt: SttPort = { async transcribe() { return { text: "一人です", confidence: 0.9 }; } };
+// 골격 미매칭 발화 — fast-path를 건너뛰고 mock LLM 판정 경로를 타게(미충족·inappropriate 검증용)
+const sttMiss: SttPort = { async transcribe() { return { text: "ぜんぜんちがう", confidence: 0.9 }; } };
 const tts: TtsPort = { async synth() { return "mock://audio.mp3"; } };
 
 function makeStore() {
@@ -53,7 +55,7 @@ describe("runTurn (1턴 오케스트레이션)", () => {
   it("미충족이면 recovery로 제자리", async () => {
     const { store } = makeStore();
     const llm = llmWith({ grade: "C", matched: [], weaknessTags: [], affinityDelta: 0, nextSceneId: "recovery", reason: "" });
-    const { result } = await runTurn({ stt, llm, tts, store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
+    const { result } = await runTurn({ stt: sttMiss, llm, tts, store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
     expect(result.nextSceneId).toBe("s1");
     expect(result.npcLine).toContain("もう一度");
   });
@@ -69,7 +71,7 @@ describe("runTurn (1턴 오케스트레이션)", () => {
   it("못된 말(inappropriate)은 흡수 — 호감도 냉각·제자리·종료 X(규칙5)", async () => {
     const { store } = makeStore();
     const llm = llmWith({ grade: "C", matched: [], weaknessTags: [], affinityDelta: 0, nextSceneId: "recovery", reason: "", category: "inappropriate" });
-    const { result } = await runTurn({ stt, llm, tts, store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
+    const { result } = await runTurn({ stt: sttMiss, llm, tts, store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
     expect(result.affinity).toBe(-1);
     expect(result.nextSceneId).toBe("s1");
     expect(result.done).toBe(false);
