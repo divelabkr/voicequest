@@ -22,6 +22,7 @@ export { buildReadModel } from "./readModel";
 export { sceneStats, type SceneStat } from "./content-stats";
 export { emptyQuality, recordQuality, summarizeQuality, type QualityMeter, type QualitySummary } from "./quality";
 export { sanitizeId } from "./util";
+export { emptyErrors, recordError, summarizeErrors, sanitizeError, errorGuide, type ErrorMeter, type ErrorSample, type ErrorSummary } from "./errors";
 export { timeToFirstWin, dropPoint, churnRisk } from "./learning";
 export { scoreToStars, branchUp, worldlineId } from "./review";
 export { pickCallback, fillSlots } from "./callback";

@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
@@ -111,6 +111,8 @@ const today = (): string => new Date(Date.now() + 9 * 3_600_000).toISOString().s
 const monthKST = (): string => today().slice(0, 7); // "YYYY-MM"
 let costMeter: CostMeter = emptyMeter(monthKST());
 let qualityMeter = emptyQuality(); // 품질 SSOT — 턴마다 fast/에러/레이턴시/신뢰도 누적(costMeter와 같은 패턴)
+let errorMeter = emptyErrors(); // 에러 관측 SSOT — 클라·server 에러 자동 수집(복구 아님, 추적·가이드 전용)
+let errMinute = 0, errMinuteCount = 0; // /client-error rate limit(분당 상한 — 폭주 방어)
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
 
@@ -472,6 +474,7 @@ const server = createServer(async (req, res) => {
       if (result.grade !== "-" || metrics?.error) {
         // 품질 SSOT 기록 + 단계별 로그(stt/judge 분리 — 어디서 느린지 보임)
         qualityMeter = recordQuality(qualityMeter, { ms: turnMs, fast: result.reason === "fast_exact_match", error: metrics?.error ?? false, confidence: metrics?.confidence ?? 0 });
+        if (metrics?.error) errorMeter = recordError(errorMeter, { kind: "stt_fail", message: "STT 전사 실패(자막 폴백 동작)", where: "session", ts: Date.now() }); // 자동 관측(복구 아님)
         console.log(`[turn] ${turnMs}ms (stt ${metrics?.sttMs ?? 0} + judge ${metrics?.judgeMs ?? 0}) ${result.reason === "fast_exact_match" ? "⚡fast" : "🤖llm"} grade=${result.grade}`);
       }
       sess.state = state;
@@ -490,9 +493,27 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ...enriched, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length }, timing: { ms: turnMs, fast: result.reason === "fast_exact_match" } }));
       return;
     }
+    // 클라 에러 자동 수집(public·best-effort) — rate limit으로 폭주 방어. 복구 아님, 기록만.
+    if (req.method === "POST" && req.url === "/client-error") {
+      const nowMin = Math.floor(Date.now() / 60000);
+      if (nowMin !== errMinute) { errMinute = nowMin; errMinuteCount = 0; }
+      if (errMinuteCount < 300) { // 분당 300 상한(폭주 방어)
+        errMinuteCount++;
+        try { const b = JSON.parse(await readBody(req)) as { kind?: string; message?: string; where?: string }; errorMeter = recordError(errorMeter, { kind: b.kind ?? "client", message: b.message ?? "", where: b.where ?? "web", ts: Date.now() }); } catch { /* 잘못된 리포트 무시 */ }
+      }
+      res.statusCode = 204; res.end(); return; // best-effort(항상 성공 응답 — 앱 안 멈춤)
+    }
+    // 에러 추적(운영자) — 종류별 빈도·최근·점검 가이드(복구 명령 아님, 운영자가 조치)
+    if (req.method === "GET" && req.url?.startsWith("/admin/errors")) {
+      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      res.end(JSON.stringify(summarizeErrors(errorMeter)));
+      return;
+    }
     res.statusCode = 404;
     res.end(JSON.stringify({ error: "not_found" }));
   } catch (e) {
+    // 전역 에러 자동 관측(복구 아님 — 기록만, 운영자 추적)
+    errorMeter = recordError(errorMeter, { kind: "server", message: String(e), where: req.url ?? "?", ts: Date.now() });
     res.statusCode = 500;
     res.end(JSON.stringify({ error: String(e).slice(0, 200) }));
   }

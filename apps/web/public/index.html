@@ -48,6 +48,11 @@ ruby rt{font-size:.5em;color:var(--hint)}
 <div class="wrap" id="app"></div>
 <script>
 const API = "http://localhost:8787";
+// 에러 자동 관측 — 사용자 설명 없이 캡처해 server로 리포트(best-effort, 앱 안 멈춤). 복구 아님.
+function reportError(k,m,w){try{fetch(API+'/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:k,message:String(m).slice(0,240),where:w||'web'})}).catch(function(){});}catch(e){}}
+window.addEventListener('error',function(e){reportError('client_js',(e.message||'')+' @'+((e.filename||'').split('/').pop())+':'+(e.lineno||''),'web');});
+window.addEventListener('unhandledrejection',function(e){reportError('client_js','unhandled: '+((e.reason&&e.reason.message)||e.reason||''),'web');});
+(function(){var _f=window.fetch;window.fetch=function(u){var p=_f.apply(this,arguments);if(String(u).indexOf('/client-error')<0)p.catch(function(err){reportError('client_fetch',String(err)+' '+u,'web');});return p;};})();
 let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집', showFuri = localStorage.getItem('vq_furi') !== '0';
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
