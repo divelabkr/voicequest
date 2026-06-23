@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { View, Text } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import Constants from "expo-constants";
 import TalkScreen from "./src/TalkScreen";
 import SignupScreen from "./src/SignupScreen";
 import ResultScreen from "./src/ResultScreen";
+import AdminApp from "./src/AdminApp";
 import { reportError, checkVersion, APP_VERSION } from "./src/api";
+
+// 플레이버 — admin 빌드면 운영자 콘솔, 아니면 사용자 게임(app.config.js extra.flavor).
+const FLAVOR = (Constants.expoConfig?.extra as { flavor?: string } | undefined)?.flavor ?? "user";
 
 // 전역 JS 에러 자동 관측 — 캡처·기록 후 RN 기본 핸들러를 그대로 호출(복구·억제 안 함, 추적용).
 const _eu = (globalThis as { ErrorUtils?: { getGlobalHandler?: () => (e: Error, fatal?: boolean) => void; setGlobalHandler?: (h: (e: Error, fatal?: boolean) => void) => void } }).ErrorUtils;
@@ -15,6 +20,7 @@ _eu?.setGlobalHandler?.((e: Error, isFatal?: boolean) => {
 });
 
 export default function App() {
+  if (FLAVOR === "admin") return <AdminApp />; // 운영자 앱(WebView 콘솔)
   const [userId, setUserId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [gateMin, setGateMin] = useState<string | null>(null);
