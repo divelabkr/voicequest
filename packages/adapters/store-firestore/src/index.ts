@@ -5,14 +5,9 @@ import { join } from "node:path";
 import { initializeApp, cert, getApps, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import type { EventStorePort, GameEvent, ReadModel } from "@voicequest/engine";
-import { buildReadModel } from "@voicequest/engine";
+import { buildReadModel, sanitizeId } from "@voicequest/engine";
 
 export type { App as FirestoreApp } from "firebase-admin/app";
-
-/** 파일명/문서ID 안전화 — 경로 traversal·특수문자 차단. */
-function sanitizeId(id: string): string {
-  return id.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) || "anon";
-}
 
 // ── 파일 폴백(키 없을 때) ──
 export class PersistentEventStore implements EventStorePort {

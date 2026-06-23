@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
@@ -258,7 +258,7 @@ const server = createServer(async (req, res) => {
       if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
       const dayOf = (ts: number): number => Math.floor((ts + 9 * 3_600_000) / 86_400_000);
       const nowDay = dayOf(Date.now());
-      const evFile = (uid: string): string => resolve(EVENTS_DIR, uid.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) + ".jsonl");
+      const evFile = (uid: string): string => resolve(EVENTS_DIR, sanitizeId(uid) + ".jsonl");
       let signups = 0, d1e = 0, d1r = 0, d7e = 0, d7r = 0;
       for (const acc of accounts.values()) {
         signups++;
@@ -279,7 +279,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && req.url?.startsWith("/admin/scene-stats")) {
       if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
       const all: GameEvent[] = [];
-      const evFile = (uid: string): string => resolve(EVENTS_DIR, uid.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) + ".jsonl");
+      const evFile = (uid: string): string => resolve(EVENTS_DIR, sanitizeId(uid) + ".jsonl");
       for (const acc of accounts.values()) {
         try { for (const l of readFileSync(evFile(acc.userId), "utf8").split("\n")) { if (l) all.push(JSON.parse(l) as GameEvent); } } catch { /* 활동 없음 */ }
       }
