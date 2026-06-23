@@ -38,6 +38,14 @@ export interface TurnResult {
   speakerIsMain?: boolean; // 메인 캐릭터 여부(서브 NPC만 라벨 표시)
 }
 
+/** 턴 계측 — 파이프라인 단계별 레이턴시·품질(server qualityMeter가 누적). */
+export interface TurnMetrics {
+  sttMs: number;
+  judgeMs: number;
+  confidence: number; // STT 신뢰도(0~1)
+  error: boolean; // STT 실패
+}
+
 const USER_BEAT: DialogueBeat = { kind: "user" };
 
 export async function runTurn(
@@ -46,7 +54,7 @@ export async function runTurn(
   audio: ArrayBuffer,
   ts: number,
   recentGrades: Grade[] = [],
-): Promise<{ result: TurnResult; state: GameState }> {
+): Promise<{ result: TurnResult; state: GameState; metrics?: TurnMetrics }> {
   const scene = findScene(deps.episode, state.currentSceneId);
   if (!scene) throw new Error(`scene_not_found: ${state.currentSceneId}`);
 
@@ -100,6 +108,7 @@ export async function runTurn(
   }
   // 오디오 있음 → STT(폴백: 못 알아들으면 recovery 안내) → judge → advance
   let tr: Transcript;
+  const _stt0 = Date.now();
   try {
     tr = await deps.stt.transcribe(audio, "ja");
   } catch {
@@ -107,8 +116,11 @@ export async function runTurn(
     return {
       result: { npcLine: "ごめん、もう一度どうぞ", audioUrl: fb, grade: "-", affinity: state.affinity, nextSceneId: state.currentSceneId, done: false, awaitsUser: true },
       state,
+      metrics: { sttMs: Date.now() - _stt0, judgeMs: 0, confidence: 0, error: true },
     };
   }
+  const sttMs = Date.now() - _stt0;
+  const _judge0 = Date.now();
   const jr: JudgeResult = await judge(
     {
       transcript: tr.text,
@@ -120,6 +132,7 @@ export async function runTurn(
     },
     deps.llm,
   );
+  const judgeMs = Date.now() - _judge0;
 
   // ── 안전 분기: 못된 말(inappropriate)·위험(harmful)은 흡수 — advance X, 호감도 냉각, deflection 응답(규칙5) ──
   if (jr.category === "inappropriate" || jr.category === "harmful") {
@@ -138,6 +151,7 @@ export async function runTurn(
     return {
       result: { npcLine, audioUrl: deflAudio, grade: jr.grade, affinity, nextSceneId: state.currentSceneId, done: false, awaitsUser: true },
       state: { ...state, affinity },
+      metrics: { sttMs, judgeMs, confidence: tr.confidence, error: false },
     };
   }
 
@@ -169,6 +183,7 @@ export async function runTurn(
       reason: jr.reason,
     },
     state: adv.state,
+    metrics: { sttMs, judgeMs, confidence: tr.confidence, error: false },
   };
 }
 

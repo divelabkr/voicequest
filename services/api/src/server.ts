@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
@@ -146,6 +146,7 @@ const today = (): string => new Date(Date.now() + 9 * 3_600_000).toISOString().s
 // ── 비용 거버넌스(⑥⑦⑧) — 월 사용량 미터(인메모리). 폭주 차단이 목적이라 재시작 리셋 허용(알파). ──
 const monthKST = (): string => today().slice(0, 7); // "YYYY-MM"
 let costMeter: CostMeter = emptyMeter(monthKST());
+let qualityMeter = emptyQuality(); // 품질 SSOT — 턴마다 fast/에러/레이턴시/신뢰도 누적(costMeter와 같은 패턴)
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
 
@@ -283,6 +284,12 @@ const server = createServer(async (req, res) => {
         try { for (const l of readFileSync(evFile(acc.userId), "utf8").split("\n")) { if (l) all.push(JSON.parse(l) as GameEvent); } } catch { /* 활동 없음 */ }
       }
       res.end(JSON.stringify({ scenes: sceneStats(all) }));
+      return;
+    }
+    // ── 품질·헬스 가시성(②③) — fast율·에러율·레이턴시 p50/p95·평균 신뢰도(qualityMeter SSOT) ──
+    if (req.url?.startsWith("/admin/quality")) {
+      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      res.end(JSON.stringify({ ...summarizeQuality(qualityMeter), sessions: sessions.size, uptimeSec: Math.round(process.uptime()) }));
       return;
     }
     // ── 콘텐츠: 캐시 빌드 실행(멱등 재사용) — spike/cache-build를 잡으로 ──
@@ -492,9 +499,13 @@ const server = createServer(async (req, res) => {
       // OPIc 적응형 난이도(④) — 최근 등급으로 strictness 동적 조정
       const recentGrades = sess.events.filter((e): e is Extract<GameEvent, { type: "turn_spoken" }> => e.type === "turn_spoken").map((e) => e.grade).slice(-5);
       const _t0 = Date.now();
-      const { result, state } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
+      const { result, state, metrics } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
       const turnMs = Date.now() - _t0;
-      if (result.grade !== "-") console.log(`[turn] ${turnMs}ms ${result.reason === "fast_exact_match" ? "⚡fast" : "🤖llm"} grade=${result.grade}`);
+      if (result.grade !== "-" || metrics?.error) {
+        // 품질 SSOT 기록 + 단계별 로그(stt/judge 분리 — 어디서 느린지 보임)
+        qualityMeter = recordQuality(qualityMeter, { ms: turnMs, fast: result.reason === "fast_exact_match", error: metrics?.error ?? false, confidence: metrics?.confidence ?? 0 });
+        console.log(`[turn] ${turnMs}ms (stt ${metrics?.sttMs ?? 0} + judge ${metrics?.judgeMs ?? 0}) ${result.reason === "fast_exact_match" ? "⚡fast" : "🤖llm"} grade=${result.grade}`);
+      }
       sess.state = state;
       if (result.awaitsUser && result.grade !== "-") {
         sess.usage = recordTurn(sess.usage, today());

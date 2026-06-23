@@ -20,6 +20,7 @@ export { deflectionTone, affinityPenalty, isHardBlock, needsDeflection } from ".
 export type { DeflectionTone } from "./safety";
 export { buildReadModel } from "./readModel";
 export { sceneStats, type SceneStat } from "./content-stats";
+export { emptyQuality, recordQuality, summarizeQuality, type QualityMeter, type QualitySummary } from "./quality";
 export { timeToFirstWin, dropPoint, churnRisk } from "./learning";
 export { scoreToStars, branchUp, worldlineId } from "./review";
 export { pickCallback, fillSlots } from "./callback";
