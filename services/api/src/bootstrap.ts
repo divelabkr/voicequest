@@ -33,7 +33,7 @@ export interface BootResult {
 export function bootstrap(episode: Episode, envPath: string | URL): BootResult {
   const env = loadEnv(envPath);
   if (!env.DEEPGRAM_KEY) throw new Error("DEEPGRAM_KEY 없음 — .env 확인");
-  const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY });
+  const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY, host: env.DEEPGRAM_HOST });
   // 데코레이터 체인 — judge 캐시(반복 발화 0초·0원) + 품질 폴백(Haiku 키 있으면 저신뢰 재판정).
   // judge()·session·turn은 그대로. 캐시·폴백·품질이 LlmPort 뒤로 숨음(흩어짐 방지·규칙7).
   const qwen = new QwenLlm({ baseURL: "http://localhost:11434/v1", model: "qwen3-coder:30b", apiKey: "ollama" });

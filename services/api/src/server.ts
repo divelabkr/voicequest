@@ -506,4 +506,8 @@ const server = createServer(async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT ?? 8787);
-server.listen(PORT, () => console.log(`VoiceQuest API :${PORT} (stage=${STAGE})`));
+server.listen(PORT, () => {
+  console.log(`VoiceQuest API :${PORT} (stage=${STAGE})`);
+  // ollama cold start 방지(실측 2983→1708ms) — 시작 시 judge LLM 1회 예열, 첫 유저 턴이 warm
+  deps.llm.judge({ transcript: "予熱", sttConfidence: 1, scene: { id: "_warmup", intent: "", requiredSlots: [], allowedExpressions: [] }, modifier: {}, strictness: "normal", affinity: 0 }).then(() => console.log("[warmup] judge LLM 예열 완료")).catch(() => {});
+});

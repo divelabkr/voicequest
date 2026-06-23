@@ -6,6 +6,8 @@ export interface DeepgramOpts {
   apiKey: string;
   /** Deepgram 모델(기본 nova-2, 일본어 지원) */
   model?: string;
+  /** API host(기본 api.deepgram.com) — 리전 엣지·self-host로 네트워크 왕복 단축 대비 */
+  host?: string;
 }
 
 interface DeepgramResponse {
@@ -17,15 +19,17 @@ interface DeepgramResponse {
 export class DeepgramStt implements SttPort {
   private readonly apiKey: string;
   private readonly model: string;
+  private readonly host: string;
 
   constructor(opts: DeepgramOpts) {
     this.apiKey = opts.apiKey;
     this.model = opts.model ?? "nova-2";
+    this.host = opts.host ?? "api.deepgram.com";
   }
 
   async transcribe(audio: ArrayBuffer, lang: "ja"): Promise<Transcript> {
     const url =
-      `https://api.deepgram.com/v1/listen?model=${this.model}&language=${lang}` +
+      `https://${this.host}/v1/listen?model=${this.model}&language=${lang}` +
       `&punctuate=true&smart_format=true`;
     const r = await fetch(url, {
       method: "POST",
