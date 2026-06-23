@@ -48,6 +48,10 @@ ruby rt{font-size:.5em;color:var(--hint)}
 <div class="wrap" id="app"></div>
 <script>
 const API = "http://localhost:8787";
+const APP_VERSION = "0.0.1"; // 앱 버전 게이트 — server minAppVersion 미만이면 차단(kill switch)
+function cmpVer(a,b){var pa=String(a).split('.').map(Number),pb=String(b).split('.').map(Number);for(var i=0;i<3;i++){var x=pa[i]||0,y=pb[i]||0;if(x!==y)return x<y?-1:1;}return 0;}
+function gateView(min){document.getElementById('app').innerHTML='<div style="text-align:center;padding:70px 24px"><div style="font-size:40px">🔄</div><h2 style="margin:14px 0 6px">업데이트가 필요해요</h2><p class="sub">최신 버전(v'+min+')으로 업데이트해 주세요.<br>현재 v'+APP_VERSION+'은 더 이상 지원되지 않습니다.</p><button onclick="location.reload(true)" style="margin-top:18px">새로고침</button></div>';}
+async function checkVersion(){try{var j=await(await fetch(API+'/health')).json();if(j.minAppVersion&&cmpVer(APP_VERSION,j.minAppVersion)<0){gateView(j.minAppVersion);return false;}}catch(e){}return true;}
 // 에러 자동 관측 — 사용자 설명 없이 캡처해 server로 리포트(best-effort, 앱 안 멈춤). 복구 아님.
 function reportError(k,m,w){try{fetch(API+'/client-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:k,message:String(m).slice(0,240),where:w||'web'})}).catch(function(){});}catch(e){}}
 window.addEventListener('error',function(e){reportError('client_js',(e.message||'')+' @'+((e.filename||'').split('/').pop())+':'+(e.lineno||''),'web');});
@@ -272,7 +276,7 @@ async function onMic(){
 }
 function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-if(userId){ selectView(); } else { signupView(); }
+checkVersion().then(function(ok){ if(!ok) return; if(userId){ selectView(); } else { signupView(); } });
 </script>
 </body>
 </html>

@@ -15,6 +15,22 @@ export interface TurnResult {
 // 웹=호스트 localhost, 에뮬=10.0.2.2(에뮬→PC 매핑), 실기기=PC IP.
 export const API_BASE = Platform.OS === "web" ? "http://localhost:8787" : "http://10.0.2.2:8787";
 
+export const APP_VERSION = "0.0.1"; // 앱 버전 게이트 — server minAppVersion 미만이면 차단(kill switch)
+function cmpVer(a: string, b: string): number {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) { const x = pa[i] ?? 0; const y = pb[i] ?? 0; if (x !== y) return x < y ? -1 : 1; }
+  return 0;
+}
+/** 시작 버전 체크 — 구버전이면 minVersion(게이트), 최신이면 null. 네트워크 실패는 통과(오프라인 오차단 방지). */
+export async function checkVersion(): Promise<string | null> {
+  try {
+    const j = (await (await fetch(`${API_BASE}/health`)).json()) as { minAppVersion?: string };
+    if (j.minAppVersion && cmpVer(APP_VERSION, j.minAppVersion) < 0) return j.minAppVersion;
+  } catch { /* 통과 */ }
+  return null;
+}
+
 /** 에러 자동 관측 — server로 리포트(best-effort, 앱 안 멈춤). 복구 아님, 추적·가이드용. */
 export function reportError(kind: string, message: string, where = "mobile"): void {
   try {

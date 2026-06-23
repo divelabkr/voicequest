@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
@@ -69,6 +69,7 @@ const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마�
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
 const ADMIN_TOKEN = GEN_ENV.ADMIN_TOKEN ?? process.env.ADMIN_TOKEN ?? ""; // .env 우선(다른 키와 통일), env 폴백
+const MIN_APP_VERSION = GEN_ENV.MIN_APP_VERSION ?? process.env.MIN_APP_VERSION ?? "0.0.0"; // 앱 버전 게이트(0.0.0=비활성). 운영 시 .env로 올려 구버전 클라 차단(kill switch)
 
 // [M2] CORS allowlist — 전역 *을 금지하고 내부 도구(admin/web) origin만 허용. CORS_ORIGINS로 추가.
 const ALLOWED_ORIGINS = new Set<string>([
@@ -144,9 +145,15 @@ const server = createServer(async (req, res) => {
   }
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-token");
   if (req.method === "OPTIONS") { res.statusCode = 204; res.end(); return; }
+  // 앱 버전 게이트 — 구버전 클라 차단(kill switch). /health·/client-error는 통과(버전 정보·에러 리포트는 막지 않음).
+  if (!req.url?.startsWith("/health") && !req.url?.startsWith("/client-error") && needsUpdate(req.headers["x-app-version"] as string | undefined, MIN_APP_VERSION)) {
+    res.statusCode = 426; // Upgrade Required
+    res.end(JSON.stringify({ error: "upgrade_required", minVersion: MIN_APP_VERSION }));
+    return;
+  }
   try {
     if (req.url === "/health") {
-      res.end(JSON.stringify({ ok: true, stage: STAGE, capacity: CAP, sessions: sessions.size }));
+      res.end(JSON.stringify({ ok: true, stage: STAGE, capacity: CAP, sessions: sessions.size, minAppVersion: MIN_APP_VERSION }));
       return;
     }
     // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
