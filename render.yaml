@@ -18,7 +18,7 @@ services:
         value: "0.0.0"     # 앱 버전 게이트(0.0.0=비활성). 운영 시 올려 구버전 차단
       - key: DEEPGRAM_KEY
         sync: false        # ★필수 — STT. 없으면 서버 시작 실패(bootstrap throw)
-      - key: ANTHROPIC_KEY
+      - key: ANTHROPIC_API_KEY
         sync: false        # ★judge Haiku 폴백 + 콘텐츠 생성(클라우드엔 ollama 없음 → 이 키로 judge 동작)
       - key: ADMIN_TOKEN
         sync: false        # 운영 콘솔(/admin) 인증 토큰
