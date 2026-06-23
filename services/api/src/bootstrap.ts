@@ -13,11 +13,19 @@ import type { TurnDeps } from "./session";
 /** .env 파서(인라인 주석·따옴표·CR 정리). */
 export function loadEnv(path: string | URL): Record<string, string> {
   const env: Record<string, string> = {};
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
-    if (!m || !m[1]) continue;
-    const v = (m[2] ?? "").replace(/\s+#.*$/, "").trim().replace(/^(['"])([\s\S]*)\1$/, "$2").replace(/\r$/, "");
-    if (v) env[m[1]] = v;
+  // .env 파일(로컬 개발). 클라우드(Render/Cloud Run)엔 파일 없음 → catch 후 process.env로 폴백.
+  try {
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+      if (!m || !m[1]) continue;
+      const v = (m[2] ?? "").replace(/\s+#.*$/, "").trim().replace(/^(['"])([\s\S]*)\1$/, "$2").replace(/\r$/, "");
+      if (v) env[m[1]] = v;
+    }
+  } catch { /* .env 없음(클라우드 배포) — process.env만 사용 */ }
+  // 클라우드 주입 env 지원(Render/Cloud Run) — .env에 없는 키는 process.env에서 채움(.env 우선).
+  for (const k of ["DEEPGRAM_KEY", "DEEPGRAM_HOST", "ANTHROPIC_KEY", "ANTHROPIC_API_KEY", "ADMIN_TOKEN", "MIN_APP_VERSION", "FIREBASE_SERVICE_ACCOUNT", "CORS_ORIGINS", "OLLAMA_URL", "OLLAMA_MODEL"]) {
+    const pv = process.env[k];
+    if (!env[k] && pv) env[k] = pv;
   }
   return env;
 }
@@ -36,8 +44,10 @@ export function bootstrap(episode: Episode, envPath: string | URL): BootResult {
   const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY, host: env.DEEPGRAM_HOST });
   // 데코레이터 체인 — judge 캐시(반복 발화 0초·0원) + 품질 폴백(Haiku 키 있으면 저신뢰 재판정).
   // judge()·session·turn은 그대로. 캐시·폴백·품질이 LlmPort 뒤로 숨음(흩어짐 방지·규칙7).
-  const qwen = new QwenLlm({ baseURL: "http://localhost:11434/v1", model: "qwen3-coder:30b", apiKey: "ollama" });
-  const llm = new CachedLlm(env.ANTHROPIC_KEY ? new FallbackLlm(qwen, new ClaudeLlm("claude-haiku-4-5", env.ANTHROPIC_KEY)) : qwen);
+  const anthropicKey = env.ANTHROPIC_KEY ?? env.ANTHROPIC_API_KEY ?? "";
+  // judge: 로컬 Qwen(ollama·무료) 우선 → 실패 시 Haiku 폴백. 클라우드엔 ollama 없으니 키 있으면 Haiku로 동작.
+  const qwen = new QwenLlm({ baseURL: env.OLLAMA_URL ?? "http://localhost:11434/v1", model: env.OLLAMA_MODEL ?? "qwen3-coder:30b", apiKey: "ollama" });
+  const llm = new CachedLlm(anthropicKey ? new FallbackLlm(qwen, new ClaudeLlm("claude-haiku-4-5", anthropicKey)) : qwen);
   const tts: TtsPort = { async synth() { return "cache://npc(자막모드)"; } };
   const events: GameEvent[] = [];
   const store: EventStorePort = {

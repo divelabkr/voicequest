@@ -47,7 +47,7 @@ ruby rt{font-size:.5em;color:var(--hint)}
 <body>
 <div class="wrap" id="app"></div>
 <script>
-const API = "http://localhost:8787";
+const API = "";
 const APP_VERSION = "0.0.1"; // 앱 버전 게이트 — server minAppVersion 미만이면 차단(kill switch)
 function cmpVer(a,b){var pa=String(a).split('.').map(Number),pb=String(b).split('.').map(Number);for(var i=0;i<3;i++){var x=pa[i]||0,y=pb[i]||0;if(x!==y)return x<y?-1:1;}return 0;}
 function gateView(min){document.getElementById('app').innerHTML='<div style="text-align:center;padding:70px 24px"><div style="font-size:40px">🔄</div><h2 style="margin:14px 0 6px">업데이트가 필요해요</h2><p class="sub">최신 버전(v'+min+')으로 업데이트해 주세요.<br>현재 v'+APP_VERSION+'은 더 이상 지원되지 않습니다.</p><button onclick="location.reload(true)" style="margin-top:18px">새로고침</button></div>';}

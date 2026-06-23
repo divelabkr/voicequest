@@ -1,0 +1,13 @@
+# Docker 이미지 제외 — 빌드 컨텍스트 축소(monorepo 루트 기준)
+**/node_modules
+**/.git
+**/dist
+**/.turbo
+.expo
+apps/mobile/android
+apps/mobile/ios
+apps/mobile/.expo
+**/*.apk
+**/*.log
+# data/는 런타임 생성(파일 영속) — 이미지엔 미포함(server가 mkdir)
+data

@@ -12,8 +12,9 @@ export interface TurnResult {
   words?: { w: string; gloss: string }[]; // 단어뜻(kuromoji+사전)
 }
 
-// 웹=호스트 localhost, 에뮬=10.0.2.2(에뮬→PC 매핑), 실기기=PC IP.
-export const API_BASE = Platform.OS === "web" ? "http://localhost:8787" : "http://10.0.2.2:8787";
+// 웹=호스트 localhost. 네이티브(에뮬·실기기)=localhost + `adb reverse tcp:8787 tcp:8787`로 PC 서버 연결.
+// 배포 시 EXPO_PUBLIC_API_BASE로 실제 호스트 주입(reverse는 USB/adb 개발 환경 전용).
+export const API_BASE = Platform.OS === "web" ? "http://localhost:8787" : (process.env.EXPO_PUBLIC_API_BASE ?? "http://localhost:8787");
 
 export const APP_VERSION = "0.0.1"; // 앱 버전 게이트 — server minAppVersion 미만이면 차단(kill switch)
 function cmpVer(a: string, b: string): number {

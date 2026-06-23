@@ -21,7 +21,8 @@ module.exports = {
       permissions: isAdmin ? [] : ["RECORD_AUDIO"],
     },
     web: { bundler: "metro" },
-    plugins: ["expo-asset", "expo-font"],
+    // usesCleartextTraffic: release 빌드에서 로컬 HTTP(adb reverse localhost:8787/8096) 허용. 배포는 HTTPS라 무관.
+    plugins: [["expo-build-properties", { android: { usesCleartextTraffic: true } }], "expo-asset", "expo-font"],
     extra: { flavor: isAdmin ? "admin" : "user" },
   },
 };

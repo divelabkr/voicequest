@@ -1,9 +1,9 @@
 // 운영자 전용 앱 — admin 웹 콘솔을 WebView로 래핑(네이티브 재구현 대신 검증된 admin UI 재사용).
-// URL은 env로 개발/배포 분리: 개발=에뮬레이터→호스트(10.0.2.2:8096), 배포=실제 admin 호스트.
+// URL은 env로 개발/배포 분리: 개발=localhost:8096(에뮬·실기기 모두 adb reverse tcp:8096), 배포=실제 admin 호스트.
 import { WebView } from "react-native-webview";
 import { SafeAreaView, StatusBar, View, Text } from "react-native";
 
-const ADMIN_URL = process.env.EXPO_PUBLIC_ADMIN_URL ?? "http://10.0.2.2:8096";
+const ADMIN_URL = process.env.EXPO_PUBLIC_ADMIN_URL ?? "http://localhost:8096";
 
 export default function AdminApp() {
   return (

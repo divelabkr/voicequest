@@ -156,6 +156,17 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: true, stage: STAGE, capacity: CAP, sessions: sessions.size, minAppVersion: MIN_APP_VERSION }));
       return;
     }
+    // 정적 — 단일 서비스로 웹(/)·운영콘솔(/admin) 서빙. 같은 origin이라 admin/web은 상대경로 fetch(CORS 불필요).
+    if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.end(readFileSync(new URL("../../../apps/web/public/index.html", import.meta.url)));
+      return;
+    }
+    if (req.method === "GET" && (req.url === "/admin" || req.url === "/admin/" || req.url === "/admin/index.html")) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.end(readFileSync(new URL("../../../apps/admin/public/index.html", import.meta.url)));
+      return;
+    }
     // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
     if (req.method === "GET" && req.url === "/episodes") {
       res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id), aizuchi: (MANIFESTS.get(e.id)?.aizuchi ?? []).map((a) => `/cache/${shortOf(e.id)}/${a}`) })) }));

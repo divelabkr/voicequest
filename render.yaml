@@ -1,0 +1,25 @@
+# Render Blueprint — VoiceQuest 단일 web service(API + /admin 콘솔 + / 웹 정적).
+# GitHub push → 자동 빌드·배포. "깃에 엮으면 로컬 서버 불필요".
+# 비밀키는 Render 대시보드에서 입력(sync:false) — 코드·깃에 키 금지(CLAUDE.md §9).
+services:
+  - type: web
+    name: voicequest-api
+    runtime: docker
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: .
+    plan: free            # 무료 티어: 15분 idle 후 sleep(cold start), 디스크 비영속(재시작 시 data/ 초기화)
+    region: singapore     # 한국에서 가장 가까운 리전
+    healthCheckPath: /health
+    autoDeploy: true      # main push 시 자동 재배포
+    envVars:
+      - key: STAGE
+        value: alpha
+      - key: MIN_APP_VERSION
+        value: "0.0.0"     # 앱 버전 게이트(0.0.0=비활성). 운영 시 올려 구버전 차단
+      - key: DEEPGRAM_KEY
+        sync: false        # ★필수 — STT. 없으면 서버 시작 실패(bootstrap throw)
+      - key: ANTHROPIC_KEY
+        sync: false        # ★judge Haiku 폴백 + 콘텐츠 생성(클라우드엔 ollama 없음 → 이 키로 judge 동작)
+      - key: ADMIN_TOKEN
+        sync: false        # 운영 콘솔(/admin) 인증 토큰
+      # 선택: FIREBASE_SERVICE_ACCOUNT(JSON) 넣으면 영속 저장(없으면 파일·비영속)
