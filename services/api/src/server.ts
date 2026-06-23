@@ -253,7 +253,11 @@ const server = createServer(async (req, res) => {
     // ── 품질·헬스 가시성(②③) — fast율·에러율·레이턴시 p50/p95·평균 신뢰도(qualityMeter SSOT) ──
     if (req.url?.startsWith("/admin/quality")) {
       if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
-      res.end(JSON.stringify({ ...summarizeQuality(qualityMeter), sessions: sessions.size, uptimeSec: Math.round(process.uptime()) }));
+      const q = summarizeQuality(qualityMeter);
+      // 헬스 — 에러율·p95 임계로 ok/warn/crit. crit이면 server 로그로 능동 통보(운영자 콘솔 모니터).
+      const health = q.errorRate > 0.1 ? "crit" : (q.errorRate > 0.03 || q.p95 > 5000) ? "warn" : "ok";
+      if (health === "crit") console.warn(`[health] ⚠ crit — 에러율 ${Math.round(q.errorRate * 100)}% · p95 ${q.p95}ms`);
+      res.end(JSON.stringify({ ...q, sessions: sessions.size, uptimeSec: Math.round(process.uptime()), health }));
       return;
     }
     // ── 콘텐츠: 캐시 빌드 실행(멱등 재사용) — spike/cache-build를 잡으로 ──
