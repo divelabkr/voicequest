@@ -68,7 +68,7 @@ const sessions = new Map<string, { state: GameState; usage: UsageState; events: 
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
+const ADMIN_TOKEN = GEN_ENV.ADMIN_TOKEN ?? process.env.ADMIN_TOKEN ?? ""; // .env 우선(다른 키와 통일), env 폴백
 
 // [M2] CORS allowlist — 전역 *을 금지하고 내부 도구(admin/web) origin만 허용. CORS_ORIGINS로 추가.
 const ALLOWED_ORIGINS = new Set<string>([
