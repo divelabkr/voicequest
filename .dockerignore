@@ -1,4 +1,9 @@
 # Docker 이미지 제외 — 빌드 컨텍스트 축소(monorepo 루트 기준)
+# ★★ 비밀키 — 이미지에 절대 포함 금지. 키는 Secret Manager로 런타임 주입(CLAUDE.md §9).
+.env
+.env.*
+**/.env
+**/.env.*
 **/node_modules
 **/.git
 **/dist
