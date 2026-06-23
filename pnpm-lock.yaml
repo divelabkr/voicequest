@@ -82,6 +82,9 @@ importers:
       '@voicequest/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@voicequest/llm-claude-haiku':
+        specifier: workspace:*
+        version: link:../../packages/adapters/llm-claude-haiku
       '@voicequest/llm-qwen':
         specifier: workspace:*
         version: link:../../packages/adapters/llm-qwen

@@ -5,7 +5,9 @@ import { buildReadModel } from "@voicequest/engine";
 import type { Episode, TtsPort, EventStorePort, GameEvent } from "@voicequest/engine";
 import { DeepgramStt } from "@voicequest/stt-deepgram";
 import { QwenLlm } from "@voicequest/llm-qwen";
+import { ClaudeLlm } from "@voicequest/llm-claude-haiku";
 import { initFirestore, type FirestoreApp } from "@voicequest/store-firestore";
+import { CachedLlm, FallbackLlm } from "./llm-decorators";
 import type { TurnDeps } from "./session";
 
 /** .env 파서(인라인 주석·따옴표·CR 정리). */
@@ -32,7 +34,10 @@ export function bootstrap(episode: Episode, envPath: string | URL): BootResult {
   const env = loadEnv(envPath);
   if (!env.DEEPGRAM_KEY) throw new Error("DEEPGRAM_KEY 없음 — .env 확인");
   const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY });
-  const llm = new QwenLlm({ baseURL: "http://localhost:11434/v1", model: "qwen3-coder:30b", apiKey: "ollama" });
+  // 데코레이터 체인 — judge 캐시(반복 발화 0초·0원) + 품질 폴백(Haiku 키 있으면 저신뢰 재판정).
+  // judge()·session·turn은 그대로. 캐시·폴백·품질이 LlmPort 뒤로 숨음(흩어짐 방지·규칙7).
+  const qwen = new QwenLlm({ baseURL: "http://localhost:11434/v1", model: "qwen3-coder:30b", apiKey: "ollama" });
+  const llm = new CachedLlm(env.ANTHROPIC_KEY ? new FallbackLlm(qwen, new ClaudeLlm("claude-haiku-4-5", env.ANTHROPIC_KEY)) : qwen);
   const tts: TtsPort = { async synth() { return "cache://npc(자막모드)"; } };
   const events: GameEvent[] = [];
   const store: EventStorePort = {

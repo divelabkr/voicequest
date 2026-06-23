@@ -12,6 +12,7 @@
   "dependencies": {
     "@voicequest/engine": "workspace:*",
     "@voicequest/stt-deepgram": "workspace:*",
+    "@voicequest/llm-claude-haiku": "workspace:*",
     "@voicequest/llm-qwen": "workspace:*",
     "@voicequest/store-firestore": "workspace:*"
   }
