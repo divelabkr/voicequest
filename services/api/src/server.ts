@@ -91,10 +91,10 @@ async function genQwen(prompt: string): Promise<string> {
 // 캐시 빌드 산출물(음성+후리가나+단어뜻) — runTurn 결과에 붙여 반환
 type CacheLine = { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[] };
 // 에피소드별 음성 manifest(없으면 자막) — 캐시 디렉토리 ep_01/ep_02/ep_03
-const MANIFESTS = new Map<string, { lines: CacheLine[] }>();
+const MANIFESTS = new Map<string, { lines: CacheLine[]; aizuchi?: string[] }>();
 const shortOf = (epId: string): string => epId.split("_").slice(0, 2).join("_");
 function loadManifest(epId: string): void {
-  try { MANIFESTS.set(epId, JSON.parse(readFileSync(new URL(`../../../content_cache/${shortOf(epId)}/manifest.json`, import.meta.url), "utf8")) as { lines: CacheLine[] }); } catch { /* 음성 없음 = 자막 */ }
+  try { MANIFESTS.set(epId, JSON.parse(readFileSync(new URL(`../../../content_cache/${shortOf(epId)}/manifest.json`, import.meta.url), "utf8")) as { lines: CacheLine[]; aizuchi?: string[] }); } catch { /* 음성 없음 = 자막 */ }
 }
 for (const epId of EPISODES.keys()) loadManifest(epId);
 
@@ -184,7 +184,7 @@ const server = createServer(async (req, res) => {
     }
     // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
     if (req.method === "GET" && req.url === "/episodes") {
-      res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id) })) }));
+      res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id), aizuchi: (MANIFESTS.get(e.id)?.aizuchi ?? []).map((a) => `/cache/${shortOf(e.id)}/${a}`) })) }));
       return;
     }
     // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭

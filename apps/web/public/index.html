@@ -114,12 +114,14 @@ function selectView(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div onclick="dailyView()" style="cursor:pointer;border:2px solid var(--blue);border-radius:14px;padding:15px 16px;margin:0 0 18px;background:#e6f1fb"><b style="font-size:17px">🔥 오늘의 3마디</b><div class="sub" style="margin:4px 0 0;color:#0c447c">1분 발화 연습 · 매일 스트릭</div></div><div class="sub" style="margin-bottom:12px">또는 에피소드 모험</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
   fetch(API+'/episodes').then(function(r){return r.json()}).then(function(j){
+    window._epAizu={};
     document.getElementById('epCards').innerHTML=(j.episodes||[]).map(function(e){
+      window._epAizu[e.id]=e.aizuchi||[];
       return '<div onclick="startEp(\''+e.id+'\',\''+esc2(e.title).replace(/\x27/g,"")+'\')" style="cursor:pointer;border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin:10px 0;background:#fff"><b style="font-size:17px">'+esc2(e.title)+'</b><div class="sub" style="margin:4px 0 0">'+esc2(e.character)+' · '+e.sceneCount+'씬 · NPC '+((e.npcs||[]).length)+'명'+(e.cached?' · 🔊 음성':' · 자막')+'</div></div>';
     }).join('')||'에피소드 없음';
   }).catch(function(){ document.getElementById('epCards').innerHTML='<div class="err">에피소드 로드 실패</div>'; });
 }
-function startEp(epId,title){ currentEp=epId; currentEpTitle=title||epId; talkView(); }
+function startEp(epId,title){ currentEp=epId; currentEpTitle=title||epId; window._aizuchi=(window._epAizu||{})[epId]||[]; talkView(); }
 async function dailyView(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">오늘의 3마디 불러오는 중…</div></div>';
@@ -251,11 +253,16 @@ async function onMic(){
   rec=null;
   const log=document.getElementById('log');
   log.appendChild(el('<div class="bubble you">(내 발화)</div>'));
-  // §7 추임새 흡수 — fast(즉답)는 깜빡임 없이, 느린 LLM 판정만 380ms 뒤 "えーと…"+파형으로 사람처럼 가린다.
+  // §7 추임새 흡수 — 발화 끝 즉시 NPC 음성 추임새(うーん…)를 연쇄 재생하며 LLM 판정을 병렬로 돌린다.
+  // fast(즉답)는 추임새 1개로 끝, 느린 LLM은 응답까지 추임새 연쇄 → 현재 추임새 끝나면 본 대사로 끊김 없이 이음.
+  var aizu=window._aizuchi||[]; var aiStop=false, curAi=null;
+  (function loopAi(i){ if(aiStop||!aizu.length)return; var a=new Audio(API+aizu[i%aizu.length]); curAi=a; a.onended=function(){ if(!aiStop)loopAi(i+1); }; a.play().catch(function(){}); })(0);
   var think=null; var AZ=['えーと…','うーん…','そうだね…','なるほど…']; var az=AZ[Math.floor(Math.random()*AZ.length)];
   var thinkT=setTimeout(function(){ think=el('<div class="bubble npc"><span style="opacity:.7">'+az+'</span> <span class="wave" style="height:14px;gap:4px"><i style="width:4px"></i><i style="width:4px"></i><i style="width:4px"></i></span></div>'); log.appendChild(think); log.scrollTop=log.scrollHeight; }, 380);
-  try{ const res = await postTurn(blob); clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
-  catch(e){ clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
+  try{ const res = await postTurn(blob); aiStop=true;
+    if(curAi&&!curAi.ended&&!curAi.paused){ await new Promise(function(r){ curAi.addEventListener('ended',r,{once:true}); setTimeout(r,900); }); } // 현재 추임새 끝나면 본 대사(자연 연결)
+    clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); addBubble(res); if(res.done){ setTimeout(resultView,1400); } else await advanceNpc(); }
+  catch(e){ aiStop=true; clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
   finally{ busy=false; }
 }
 function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
