@@ -44,6 +44,7 @@ export { VOICE_RAW_TTL_DAYS, REVIEW_RECORDING_TTL_DAYS, isExpired, expiredKeys, 
 export { canStart, spend, recharge } from "./energy";
 export type { EnergyState } from "./energy";
 export type { LlmPort } from "./ports/Llm";
+export type { LlmGenPort } from "./ports/LlmGen";
 export type { SttPort, Transcript, SttStreamPort, SttStream, StreamTranscript } from "./ports/Stt";
 export type { TtsPort } from "./ports/Tts";
 export type { EventStorePort } from "./ports/EventStore";

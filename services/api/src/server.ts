@@ -6,7 +6,7 @@ import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "nod
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId } from "@voicequest/engine";
-import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
+import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, LlmGenPort } from "@voicequest/engine";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "./session";
 import { bootstrap, loadEnv } from "./bootstrap";
@@ -63,7 +63,7 @@ async function genScene(context: string, intent: string, strictness: Strictness,
 JSON: {"intent":"${intent}","allowedExpressions":["..."],"beats":[{"kind":"npc","line":"..."},{"kind":"user"}]}
 JSON만, 설명 없이.`;
   // Qwen 극한 — 키 있으면 Anthropic 품질, 없으면 무료 로컬 Qwen(Ollama). 콘텐츠 공장도 비용 0 가능.
-  const text = ANTHROPIC_KEY ? await genAnthropic(prompt) : await genQwen(prompt);
+  const text = await genPort.generate(prompt);
   const m = text.match(/\{[\s\S]*\}/); // 앞뒤 설명이 섞여도 JSON 본체만 추출
   return JSON.parse(m ? m[0] : "{}") as Partial<Scene>;
 }
@@ -87,6 +87,8 @@ async function genQwen(prompt: string): Promise<string> {
   const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
   return j.choices?.[0]?.message?.content ?? "{}";
 }
+// 콘텐츠 생성 포트 — genScene은 LlmGenPort만 의존(공급자 모름·교체 가능). 키 있으면 Anthropic, 없으면 무료 Qwen.
+const genPort: LlmGenPort = { generate: ANTHROPIC_KEY ? genAnthropic : genQwen };
 
 // 캐시 빌드 산출물(음성+후리가나+단어뜻) — runTurn 결과에 붙여 반환
 type CacheLine = { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[] };
