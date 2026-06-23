@@ -15,6 +15,26 @@ export interface TurnResult {
 // 웹=호스트 localhost, 에뮬=10.0.2.2(에뮬→PC 매핑), 실기기=PC IP.
 export const API_BASE = Platform.OS === "web" ? "http://localhost:8787" : "http://10.0.2.2:8787";
 
+/** 에러 자동 관측 — server로 리포트(best-effort, 앱 안 멈춤). 복구 아님, 추적·가이드용. */
+export function reportError(kind: string, message: string, where = "mobile"): void {
+  try {
+    void fetch(`${API_BASE}/client-error`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, message: String(message).slice(0, 240), where }),
+    }).catch(() => {});
+  } catch { /* best-effort — 리포트 실패해도 앱은 정상 */ }
+}
+
+// fetch 래퍼 — 네트워크 실패를 자동 캡처(/client-error 자기 제외 → 무한루프 방어). 복구 아님, 기록만.
+const _origFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+  const p = _origFetch(input, init);
+  const url = String(typeof input === "string" ? input : ((input as Request).url ?? input));
+  if (!url.includes("/client-error")) p.catch((err: unknown) => reportError("client_fetch", `${String(err)} ${url}`, "mobile"));
+  return p;
+}) as typeof fetch;
+
 /** audio=null이면 빈 오디오(NPC 능동 beat 진행용). 있으면 녹음 Blob을 STT로 보냄(플랫폼 무관). */
 export async function postTurn(sid: string, audio: Blob | null): Promise<TurnResult> {
   const body: BodyInit = audio ?? new Uint8Array(0);
