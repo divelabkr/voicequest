@@ -10,10 +10,13 @@
     "dev": "tsx src/server.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
+    "@google/genai": "^2.8.0",
     "@voicequest/engine": "workspace:*",
     "@voicequest/stt-deepgram": "workspace:*",
     "@voicequest/llm-claude-haiku": "workspace:*",
     "@voicequest/llm-qwen": "workspace:*",
-    "@voicequest/store-firestore": "workspace:*"
+    "@voicequest/store-firestore": "workspace:*",
+    "openai": "^6.44.0"
   }
 }

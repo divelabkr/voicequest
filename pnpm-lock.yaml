@@ -79,6 +79,12 @@ importers:
 
   services/api:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.104.2
+        version: 0.104.2(zod@4.4.3)
+      '@google/genai':
+        specifier: ^2.8.0
+        version: 2.8.0
       '@voicequest/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -94,6 +100,9 @@ importers:
       '@voicequest/stt-deepgram':
         specifier: workspace:*
         version: link:../../packages/adapters/stt-deepgram
+      openai:
+        specifier: ^6.44.0
+        version: 6.44.0(ws@8.21.0)(zod@4.4.3)
 
   spike:
     dependencies:
