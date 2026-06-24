@@ -66,6 +66,7 @@ const STAGE = "alpha" as const;
 const CAP = STAGE_LIMITS[STAGE].capacity;
 const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string; lastSeen: number }>();
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
+const dailyUsage = new Map<string, UsageState>(); // userId별 데일리 일일 턴캡(STT 폭주·예산 우회 차단, /session/turn과 같은 STAGE 캡 공유 / 인메모리·재시작 리셋 허용)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
 const ADMIN_TOKEN = GEN_ENV.ADMIN_TOKEN ?? process.env.ADMIN_TOKEN ?? ""; // .env 우선(다른 키와 통일), env 폴백
@@ -263,9 +264,19 @@ const server = createServer(async (req, res) => {
       if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
       // 분당 턴 상한(초당 연타 차단) — /session/turn과 동일 burst 방어
       if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
+      // 일일 턴캡(STT 폭주·예산 우회 차단) — /session/turn과 동일 STAGE 캡 공유. 데일리는 에너지 무관 설계 → spend 없음.
+      const dUsage = dailyUsage.get(sid) ?? { turnsToday: 0, dayStamp: today() };
+      if (!canSpendTurn(dUsage, STAGE, today())) {
+        res.statusCode = 429;
+        res.end(JSON.stringify({ error: "daily_turn_cap", cap: STAGE_LIMITS[STAGE].dailyTurnCap }));
+        return;
+      }
       const audio = await readBodyBuf(req, res); if (audio === null) return; // 본문 상한 초과 → 413
       let transcript = "";
       try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → C */ }
+      dailyUsage.set(sid, recordTurn(dUsage, today())); // STT 호출 1건 = 일일캡 카운트
+      costMeter = rollMonth(costMeter, monthKST());
+      costMeter = recordCall(costMeter, "stt"); // 유료 STT 1건 기록(예산 SSOT)
       const grade = matchGrade(transcript, exp);
       let ds = dailyStates.get(sid) ?? { cards: [], streak: 0, lastDoneDay: 0 };
       const idx = ds.cards.findIndex((c) => c.expression === exp);
@@ -482,6 +493,8 @@ const server = createServer(async (req, res) => {
       if (!accounts.has(body.userId)) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_account" })); return; }
       for (const [code, inv] of invites) { if (inv.boundUserId === body.userId) invites.set(code, revokeInvite(inv)); }
       sessions.delete(body.userId);
+      dailyStates.delete(body.userId); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
+      dailyUsage.delete(body.userId);
       accounts.delete(body.userId);
       try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: body.userId }).purge?.(body.userId); } catch (e) { console.error("[purge]", String(e)); }
       saveState();
@@ -521,6 +534,8 @@ const server = createServer(async (req, res) => {
         if (inv.boundUserId === sid) invites.set(code, revokeInvite(inv));
       }
       sessions.delete(sid);
+      dailyStates.delete(sid); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
+      dailyUsage.delete(sid);
       accounts.delete(sid);
       // 잊혀질 권리(§9) — 영속 events 파일도 삭제(미연결이면 noop, 연결 시 자동 적용)
       try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: sid }).purge?.(sid); } catch (e) { console.error("[purge] events:", String(e)); }
