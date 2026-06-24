@@ -180,10 +180,14 @@ function requireAdmin(req: IncomingMessage, res: ServerResponse): boolean {
 const MAX_BODY = 5 * 1024 * 1024; // 요청 본문 상한 5MB(오디오·JSON 공통 — DoS·메모리 폭주 차단)
 // 본문 버퍼링 + 상한 검사. 초과 시 413으로 끊고 null 반환(호출부는 null이면 return). 버퍼링 중 체크라 게이트보다 먼저 막힘.
 async function readBodyBuf(req: IncomingMessage, res: ServerResponse): Promise<Buffer | null> {
+  // Content-Length 선언값이 상한 초과면 버퍼링 전 즉시 413 — 소켓을 끊지 않아 413 응답이 정상 전달됨(req.destroy() 시 Cloud Run이 503 표시하던 문제 회피).
+  const declared = Number(req.headers["content-length"] ?? 0);
+  if (declared > MAX_BODY) { res.statusCode = 413; res.end(JSON.stringify({ error: "payload_too_large" })); return null; }
   const chunks: Buffer[] = []; let total = 0;
   for await (const c of req) {
     const buf = c as Buffer; total += buf.length;
-    if (total > MAX_BODY) { req.destroy(); res.statusCode = 413; res.end(JSON.stringify({ error: "payload_too_large" })); return null; }
+    // chunked(길이 미선언) 스트림 초과 — 413 응답을 먼저 보낸 뒤 소켓 정리(응답 전송 후 destroy).
+    if (total > MAX_BODY) { res.statusCode = 413; res.end(JSON.stringify({ error: "payload_too_large" })); req.destroy(); return null; }
     chunks.push(buf);
   }
   return Buffer.concat(chunks);
