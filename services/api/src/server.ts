@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runTurn } from "./session";
 import { makeGenPort, genScene } from "./scene-gen";
 import { bootstrap, loadEnv } from "./bootstrap";
@@ -64,7 +64,7 @@ for (const epId of EPISODES.keys()) loadManifest(epId);
 
 const STAGE = "alpha" as const;
 const CAP = STAGE_LIMITS[STAGE].capacity;
-const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string }>();
+const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string; lastSeen: number }>();
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
@@ -146,6 +146,14 @@ function recordAuthFail(ip: string, now: number): void {
   if (!cur || cur.min !== min) { authFail.set(ip, { min, count: 1 }); return; }
   cur.count++;
 }
+// 인메모리 Map 누수 방지 sweep — 지난 분의 rate 카운터 + 2시간 비활성 세션 제거(과설계 없이 누수만 차단).
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2시간 비활성 세션 정리
+function sweepMaps(now: number): void {
+  const min = Math.floor(now / 60000);
+  for (const [k, v] of turnRate) if (v.min < min) turnRate.delete(k);
+  for (const [k, v] of authFail) if (v.min < min) authFail.delete(k);
+  for (const [k, v] of sessions) if (now - v.lastSeen > SESSION_TTL_MS) sessions.delete(k);
+}
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
 
@@ -155,7 +163,12 @@ function genInviteCode(): string {
   return `VQ-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
 }
 function isAdmin(req: IncomingMessage): boolean {
-  return ADMIN_TOKEN !== "" && req.headers["x-admin-token"] === ADMIN_TOKEN;
+  if (ADMIN_TOKEN === "") return false; // 토큰 미설정이면 항상 false
+  const got = req.headers["x-admin-token"];
+  if (typeof got !== "string") return false;
+  // timing-safe 비교 — 길이 다르면 throw하므로 byteLength 먼저 확인(불일치 시 즉시 false)
+  const a = Buffer.from(got), b = Buffer.from(ADMIN_TOKEN);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 // admin 토큰 가드(공유) — IP brute-force 한도 초과면 429, 토큰 실패면 실패 기록 후 401. 통과 시 true.
 function requireAdmin(req: IncomingMessage, res: ServerResponse): boolean {
@@ -164,10 +177,20 @@ function requireAdmin(req: IncomingMessage, res: ServerResponse): boolean {
   if (!isAdmin(req)) { recordAuthFail(ip, now); res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return false; }
   return true;
 }
-async function readBody(req: IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
-  return Buffer.concat(chunks).toString("utf8");
+const MAX_BODY = 5 * 1024 * 1024; // 요청 본문 상한 5MB(오디오·JSON 공통 — DoS·메모리 폭주 차단)
+// 본문 버퍼링 + 상한 검사. 초과 시 413으로 끊고 null 반환(호출부는 null이면 return). 버퍼링 중 체크라 게이트보다 먼저 막힘.
+async function readBodyBuf(req: IncomingMessage, res: ServerResponse): Promise<Buffer | null> {
+  const chunks: Buffer[] = []; let total = 0;
+  for await (const c of req) {
+    const buf = c as Buffer; total += buf.length;
+    if (total > MAX_BODY) { req.destroy(); res.statusCode = 413; res.end(JSON.stringify({ error: "payload_too_large" })); return null; }
+    chunks.push(buf);
+  }
+  return Buffer.concat(chunks);
+}
+async function readBody(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  const buf = await readBodyBuf(req, res);
+  return buf === null ? null : buf.toString("utf8");
 }
 // [m2] JSON 파싱 실패를 500이 아니라 호출자가 400으로 처리하도록 null 반환
 function parseBody<T>(raw: string): T | null {
@@ -176,6 +199,7 @@ function parseBody<T>(raw: string): T | null {
 
 const server = createServer(async (req, res) => {
   res.setHeader("Content-Type", "application/json");
+  if (Math.random() < 0.02) sweepMaps(Date.now()); // 요청당 2% 확률로 인메모리 Map 정리(누수 방지, 타이머 불필요)
   // [M2] CORS — allowlist에 있는 origin만 반영(전역 * 제거)
   const origin = req.headers.origin;
   if (origin && ALLOWED_ORIGINS.has(origin)) {
@@ -183,6 +207,7 @@ const server = createServer(async (req, res) => {
     res.setHeader("Vary", "Origin");
   }
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-token");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   if (req.method === "OPTIONS") { res.statusCode = 204; res.end(); return; }
   // 앱 버전 게이트 — 구버전 클라 차단(kill switch). /health·/client-error는 통과(버전 정보·에러 리포트는 막지 않음).
   if (!req.url?.startsWith("/health") && !req.url?.startsWith("/client-error") && needsUpdate(req.headers["x-app-version"] as string | undefined, MIN_APP_VERSION)) {
@@ -232,10 +257,11 @@ const server = createServer(async (req, res) => {
       const u = new URL(req.url, "http://x");
       const sid = u.searchParams.get("sid") ?? "", exp = u.searchParams.get("exp") ?? "";
       if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
-      const chunks: Buffer[] = []; for await (const c of req) chunks.push(c as Buffer);
-      const audio = Buffer.concat(chunks);
+      // 분당 턴 상한(초당 연타 차단) — /session/turn과 동일 burst 방어
+      if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
+      const audio = await readBodyBuf(req, res); if (audio === null) return; // 본문 상한 초과 → 413
       let transcript = "";
-      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength); transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → C */ }
+      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → C */ }
       const grade = matchGrade(transcript, exp);
       let ds = dailyStates.get(sid) ?? { cards: [], streak: 0, lastDoneDay: 0 };
       const idx = ds.cards.findIndex((c) => c.expression === exp);
@@ -263,6 +289,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 운영 현황 집계(인메모리 실값) — 대시보드 KPI ──
     if (req.url?.startsWith("/admin/stats")) {
+      if (!requireAdmin(req, res)) return;
       let turnsToday = 0;
       for (const s of sessions.values()) turnsToday += s.usage.turnsToday;
       let invited = 0, redeemed = 0;
@@ -272,6 +299,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 비용 거버넌스(⑥⑦⑧): 월 사용량·예산 cap·알림 레벨 ──
     if (req.url?.startsWith("/admin/budget")) {
+      if (!requireAdmin(req, res)) return;
       costMeter = rollMonth(costMeter, monthKST());
       res.end(JSON.stringify({ meter: costMeter, status: checkBudget(costMeter), budget: DEFAULT_BUDGET }));
       return;
@@ -338,6 +366,7 @@ const server = createServer(async (req, res) => {
     }
     // ── [M1] 파일럿 게이트 평가(SSOT: engine/releaseGate) — 기술 항목을 실제 산출물로 검증 ──
     if (req.url?.startsWith("/admin/gate")) {
+      if (!requireAdmin(req, res)) return;
       const testFiles = existsSync(ENGINE_SRC) ? readdirSync(ENGINE_SRC).filter((f) => f.endsWith(".test.ts")).length : 0;
       const cacheN = existsSync(CACHE_ROOT) ? readdirSync(CACHE_ROOT).length : 0;
       const tech = {
@@ -352,6 +381,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 콘텐츠: 에피소드 목록 + 스토리보드(씬·발화트리) + 캐시 상태 ──
     if (req.url?.startsWith("/admin/episodes")) {
+      if (!requireAdmin(req, res)) return;
       const dir = fileURLToPath(new URL("../../../content/episodes/", import.meta.url));
       const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")) : [];
       const episodes = files.map((f) => {
@@ -380,7 +410,8 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url?.startsWith("/admin/scene-gen")) {
       if (!requireAdmin(req, res)) return;
       // 키 없어도 무료 Qwen(Ollama)으로 생성 — 503 차단 제거(Qwen 극한). 둘 다 없으면 gen_failed로 떨어짐.
-      const body = parseBody<{ context: string; intent: string; strictness: Strictness; character?: string }>(await readBody(req));
+      const raw0 = await readBody(req, res); if (raw0 === null) return; // 413 처리됨
+      const body = parseBody<{ context: string; intent: string; strictness: Strictness; character?: string }>(raw0);
       if (!body?.context || !body.intent || !body.strictness) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request", hint: "context·intent·strictness 필요" })); return; }
       costMeter = rollMonth(costMeter, monthKST());
       const bgScene = checkBudget(costMeter);
@@ -395,7 +426,8 @@ const server = createServer(async (req, res) => {
         const llmDrift = llmGuard.flags.some((f) => f.code === "intent_drift");
         res.end(JSON.stringify({ scene, guard, llmDrift, rawIntent: (raw.intent ?? "").trim() }));
       } catch (e) {
-        res.statusCode = 502; res.end(JSON.stringify({ error: "gen_failed", detail: String(e).slice(0, 150) }));
+        console.error("[scene-gen]", String(e)); // 상세는 서버 로그에만(클라엔 일반화)
+        res.statusCode = 502; res.end(JSON.stringify({ error: "gen_failed" }));
       }
       return;
     }
@@ -416,7 +448,8 @@ const server = createServer(async (req, res) => {
     // ── 운영자: 초대 코드 생성 ──
     if (req.method === "POST" && req.url?.startsWith("/admin/invite")) {
       if (!requireAdmin(req, res)) return;
-      const body = parseBody<{ note?: string }>(await readBody(req)) ?? {};
+      const rawIv = await readBody(req, res); if (rawIv === null) return; // 413 처리됨
+      const body = parseBody<{ note?: string }>(rawIv) ?? {};
       const code = genInviteCode();
       invites.set(code, issueInvite(code, Date.now(), body.note));
       saveState();
@@ -439,7 +472,8 @@ const server = createServer(async (req, res) => {
     // ── 운영자: 계정 삭제(테스트 정리 + 잊혀질 권리 §9 — events purge·세션·코드 회수) ──
     if (req.method === "POST" && req.url?.startsWith("/admin/account/delete")) {
       if (!requireAdmin(req, res)) return;
-      const body = parseBody<{ userId: string }>(await readBody(req));
+      const rawDel = await readBody(req, res); if (rawDel === null) return; // 413 처리됨
+      const body = parseBody<{ userId: string }>(rawDel);
       if (!body?.userId) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request" })); return; }
       if (!accounts.has(body.userId)) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_account" })); return; }
       for (const [code, inv] of invites) { if (inv.boundUserId === body.userId) invites.set(code, revokeInvite(inv)); }
@@ -453,7 +487,8 @@ const server = createServer(async (req, res) => {
     // ── [C1] 사용자: 초대 코드 사용 → 가입. alpha의 *유일한* 가입 경로. ──
     //    (초대코드 없는 /auth/signup은 비공개 게이트를 우회하므로 제거했다.)
     if (req.method === "POST" && req.url?.startsWith("/auth/redeem")) {
-      const body = parseBody<{ code: string; userId: string; consent: ConsentFlags }>(await readBody(req));
+      const rawRd = await readBody(req, res); if (rawRd === null) return; // 413 처리됨
+      const body = parseBody<{ code: string; userId: string; consent: ConsentFlags }>(rawRd);
       if (!body?.code || !body.userId || !body.consent) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request" })); return; }
       // 초대코드 brute-force 차단 — IP당 분당 실패 한도 초과면 429
       const ip = clientIp(req), now = Date.now();
@@ -492,9 +527,8 @@ const server = createServer(async (req, res) => {
     // ── 턴 루프 ──
     if (req.method === "POST" && req.url?.startsWith("/session/turn")) {
       const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "anon";
-      const chunks: Buffer[] = [];
-      for await (const c of req) chunks.push(c as Buffer);
-      const audio = Buffer.concat(chunks);
+      // 본문 상한(5MB) 검사를 게이트보다 먼저 — 버퍼링 중 초과 시 413으로 끊어 DoS 방어
+      const audio = await readBodyBuf(req, res); if (audio === null) return;
       // 계정·동의 게이트(§9): 가입 + 국외이전 동의 없으면 음성 사용 불가
       if (!canUseVoice(accounts.get(sid))) {
         res.statusCode = 403;
@@ -506,7 +540,7 @@ const server = createServer(async (req, res) => {
       let sess = sessions.get(sid);
       if (!sess) {
         const epId = new URL(req.url, "http://x").searchParams.get("ep") ?? DEFAULT_EP;
-        sess = { state: initState(EPISODES.get(epId) ?? ep), usage: { turnsToday: 0, dayStamp: today() }, events: [], energy: { current: 20, max: 20 }, episodeId: epId };
+        sess = { state: initState(EPISODES.get(epId) ?? ep), usage: { turnsToday: 0, dayStamp: today() }, events: [], energy: { current: 20, max: 20 }, episodeId: epId, lastSeen: Date.now() };
         sessions.set(sid, sess);
       }
       if (!canSpendTurn(sess.usage, STAGE, today())) {
@@ -521,7 +555,7 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "no_energy", current: sess.energy.current, max: sess.energy.max }));
         return;
       }
-      const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength);
+      const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
       // events 영속(⑥) — 인메모리(signals용) + 유저별 파일(재시작·readModel 누적) 병행
       const userStore = makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: sid });
       const sessStore: EventStorePort = {
@@ -540,6 +574,7 @@ const server = createServer(async (req, res) => {
         console.log(`[turn] ${turnMs}ms (stt ${metrics?.sttMs ?? 0} + judge ${metrics?.judgeMs ?? 0}) ${result.reason === "fast_exact_match" ? "⚡fast" : "🤖llm"} grade=${result.grade}`);
       }
       sess.state = state;
+      sess.lastSeen = Date.now(); // 활동 갱신(TTL sweep 기준)
       if (result.awaitsUser && result.grade !== "-") {
         sess.usage = recordTurn(sess.usage, today());
         sess.energy = spend(sess.energy); // 실발화 1회 에너지 소비(⑤)
@@ -559,9 +594,10 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/client-error") {
       const nowMin = Math.floor(Date.now() / 60000);
       if (nowMin !== errMinute) { errMinute = nowMin; errMinuteCount = 0; }
+      const rawCe = await readBody(req, res); if (rawCe === null) return; // 413 처리됨
       if (errMinuteCount < 300) { // 분당 300 상한(폭주 방어)
         errMinuteCount++;
-        try { const b = JSON.parse(await readBody(req)) as { kind?: string; message?: string; where?: string }; errorMeter = recordError(errorMeter, { kind: b.kind ?? "client", message: b.message ?? "", where: b.where ?? "web", ts: Date.now() }); } catch { /* 잘못된 리포트 무시 */ }
+        try { const b = JSON.parse(rawCe) as { kind?: string; message?: string; where?: string }; errorMeter = recordError(errorMeter, { kind: b.kind ?? "client", message: b.message ?? "", where: b.where ?? "web", ts: Date.now() }); } catch { /* 잘못된 리포트 무시 */ }
       }
       res.statusCode = 204; res.end(); return; // best-effort(항상 성공 응답 — 앱 안 멈춤)
     }
@@ -574,10 +610,10 @@ const server = createServer(async (req, res) => {
     res.statusCode = 404;
     res.end(JSON.stringify({ error: "not_found" }));
   } catch (e) {
-    // 전역 에러 자동 관측(복구 아님 — 기록만, 운영자 추적)
+    // 전역 에러 자동 관측(복구 아님 — 기록만, 운영자 추적). 상세는 서버 로그·errorMeter에만, 클라엔 일반화.
     errorMeter = recordError(errorMeter, { kind: "server", message: String(e), where: req.url ?? "?", ts: Date.now() });
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: String(e).slice(0, 200) }));
+    console.error("[server]", req.url ?? "?", String(e));
+    if (!res.writableEnded) { res.statusCode = 500; res.end(JSON.stringify({ error: "internal" })); }
   }
 });
 
