@@ -1,0 +1,31 @@
+# Cloud Build 자동배포 — main push 시 trigger가 실행: Docker 빌드 → Artifact Registry → Cloud Run 배포.
+# 연동(1회): 콘솔 Cloud Build > 트리거 > "저장소 연결"(GitHub divelabkr/voicequest) > 이 파일(cloudbuild.yaml) 지정.
+#   또는: gcloud builds triggers create github --repo-name=voicequest --repo-owner=divelabkr \
+#           --branch-pattern='^main$' --build-config=cloudbuild.yaml --project=voicequest-dev --region=asia-northeast3
+# 권한: Cloud Build 서비스계정에 roles/run.admin + roles/iam.serviceAccountUser + roles/secretmanager.secretAccessor 필요.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '${_IMG}', '-f', 'Dockerfile', '.']  # content_cache 포함(git 추적) → NPC 음성 배포됨
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_IMG}']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - voicequest-api
+      - --image=${_IMG}
+      - --region=asia-northeast3
+      - --max-instances=1                 # 상태 일관 + 비용 상한
+      - --allow-unauthenticated
+      - --port=8787
+      - --add-volume=name=vqdata,type=cloud-storage,bucket=voicequest-data-418332850464
+      - --add-volume-mount=volume=vqdata,mount-path=/app/data   # data/ 영속
+      - --set-secrets=DEEPGRAM_KEY=DEEPGRAM_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest
+      - --set-env-vars=STAGE=alpha,MIN_APP_VERSION=0.0.0
+substitutions:
+  _IMG: asia-northeast3-docker.pkg.dev/voicequest-dev/cloud-run-source-deploy/voicequest-api:latest
+images: ['${_IMG}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s
