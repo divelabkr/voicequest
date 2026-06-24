@@ -4,9 +4,13 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import type { AddressInfo } from "node:net";
 
-// ⚠ server.ts import 전에 버전 게이트를 켠다. .env엔 MIN_APP_VERSION이 없어 process.env 값이 채택됨(loadEnv 폴백).
-//   ADMIN_TOKEN은 .env 값이 우선이라 여기서 못 덮어씀 → 아래 dynamic import 후 실제 값을 가져와 쓴다.
+// ⚠ server.ts import 전에 게이트·키를 env로 깐다(정적 import는 호이스팅돼 env보다 먼저 평가되므로 아래 동적 import 사용).
+//   loadEnv는 .env 우선·없으면 process.env 폴백 → 로컬은 .env 값 유지, CI(.env 없음)는 아래 더미가 채택됨.
 process.env.MIN_APP_VERSION = "1.0.0";
+// CI(.env 없음) 대비 — ① bootstrap의 DEEPGRAM_KEY 필수 throw 회피 ② admin 인증 케이스용 토큰.
+//   STT/admin 실호출 없는 게이트 테스트라 더미면 충분(로컬은 .env 값이 우선이라 이 더미는 무시됨).
+process.env.DEEPGRAM_KEY = process.env.DEEPGRAM_KEY || "ci-dummy-deepgram";
+process.env.ADMIN_TOKEN = process.env.ADMIN_TOKEN || "ci-dummy-admin-token";
 
 // 동적 import — 위 env 설정이 모듈 로드 시점에 반영되도록(정적 import는 호이스팅돼 env보다 먼저 평가됨).
 const { server, ADMIN_TOKEN, MIN_APP_VERSION, AUTH_FAIL_PER_MIN, TURN_PER_MIN, turnRateOk, __resetGates } =
