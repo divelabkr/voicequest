@@ -1,6 +1,6 @@
 // HTTP 서버(CLAUDE.md §5) — POST /session/turn(오디오) → runTurn. Node 내장 http, 의존성 0.
 // 인메모리 세션 + access 게이트(알파 25명·일일 턴캡). accounts/invites는 파일 영속(data/vq-state.json).
-import { createServer, type IncomingMessage } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -114,6 +114,38 @@ let costMeter: CostMeter = emptyMeter(monthKST());
 let qualityMeter = emptyQuality(); // 품질 SSOT — 턴마다 fast/에러/레이턴시/신뢰도 누적(costMeter와 같은 패턴)
 let errorMeter = emptyErrors(); // 에러 관측 SSOT — 클라·server 에러 자동 수집(복구 아님, 추적·가이드 전용)
 let errMinute = 0, errMinuteCount = 0; // /client-error rate limit(분당 상한 — 폭주 방어)
+// ── 남용·brute-force 방어 rate limit(인메모리 분당 카운터, errMinute 패턴). 재시작 리셋 허용(알파). ──
+const TURN_PER_MIN = 20;   // 세션당 분당 턴 상한(초당 연타 차단 — 일일 턴캡과 별개)
+const AUTH_FAIL_PER_MIN = 10; // IP당 분당 인증 실패 상한(admin 토큰·invite redeem brute-force 차단)
+const turnRate = new Map<string, { min: number; count: number }>(); // sid → 분·카운트
+const authFail = new Map<string, { min: number; count: number }>(); // ip → 분·카운트
+// 세션 sid의 분당 턴 상한 검사 + 1 증가. 초과면 false(429). 분 경계마다 카운터 리셋.
+function turnRateOk(sid: string, now: number): boolean {
+  const min = Math.floor(now / 60000);
+  const cur = turnRate.get(sid);
+  if (!cur || cur.min !== min) { turnRate.set(sid, { min, count: 1 }); return true; }
+  if (cur.count >= TURN_PER_MIN) return false;
+  cur.count++; return true;
+}
+// 요청 IP 추출 — Cloud Run 뒤라 x-forwarded-for 첫 IP가 실제 클라. 없으면 소켓 주소.
+function clientIp(req: IncomingMessage): string {
+  const xff = req.headers["x-forwarded-for"];
+  const raw = Array.isArray(xff) ? xff[0] : xff;
+  return (raw?.split(",")[0]?.trim()) || req.socket.remoteAddress || "unknown";
+}
+// IP의 분당 인증 실패 한도 내인지 검사(증가 없음 — 진입 게이트용). 한도 초과면 false(429).
+function authFailOk(ip: string, now: number): boolean {
+  const cur = authFail.get(ip);
+  if (!cur || cur.min !== Math.floor(now / 60000)) return true;
+  return cur.count <= AUTH_FAIL_PER_MIN;
+}
+// 인증 실패 1건 기록(분 경계마다 리셋). authFailOk와 짝.
+function recordAuthFail(ip: string, now: number): void {
+  const min = Math.floor(now / 60000);
+  const cur = authFail.get(ip);
+  if (!cur || cur.min !== min) { authFail.set(ip, { min, count: 1 }); return; }
+  cur.count++;
+}
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
 
@@ -124,6 +156,13 @@ function genInviteCode(): string {
 }
 function isAdmin(req: IncomingMessage): boolean {
   return ADMIN_TOKEN !== "" && req.headers["x-admin-token"] === ADMIN_TOKEN;
+}
+// admin 토큰 가드(공유) — IP brute-force 한도 초과면 429, 토큰 실패면 실패 기록 후 401. 통과 시 true.
+function requireAdmin(req: IncomingMessage, res: ServerResponse): boolean {
+  const ip = clientIp(req), now = Date.now();
+  if (!authFailOk(ip, now)) { res.statusCode = 429; res.end(JSON.stringify({ error: "too_many_attempts" })); return false; }
+  if (!isAdmin(req)) { recordAuthFail(ip, now); res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return false; }
+  return true;
 }
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -239,7 +278,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 계측: D1/D7 코호트 — accounts(가입일) + events 파일(활동일)로 리텐션 집계 ──
     if (req.method === "GET" && req.url?.startsWith("/admin/cohort")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const dayOf = (ts: number): number => Math.floor((ts + 9 * 3_600_000) / 86_400_000);
       const nowDay = dayOf(Date.now());
       const evFile = (uid: string): string => resolve(EVENTS_DIR, sanitizeId(uid) + ".jsonl");
@@ -261,7 +300,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 콘텐츠 피드백(④ 데이터 재활용) — 씬별 오답률 집계(어느 씬 어렵나 → 작가가 콘텐츠 개선) ──
     if (req.method === "GET" && req.url?.startsWith("/admin/scene-stats")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const all: GameEvent[] = [];
       const evFile = (uid: string): string => resolve(EVENTS_DIR, sanitizeId(uid) + ".jsonl");
       for (const acc of accounts.values()) {
@@ -272,7 +311,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 품질·헬스 가시성(②③) — fast율·에러율·레이턴시 p50/p95·평균 신뢰도(qualityMeter SSOT) ──
     if (req.url?.startsWith("/admin/quality")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const q = summarizeQuality(qualityMeter);
       // 헬스 — 에러율·p95 임계로 ok/warn/crit. crit이면 server 로그로 능동 통보(운영자 콘솔 모니터).
       const health = q.errorRate > 0.1 ? "crit" : (q.errorRate > 0.03 || q.p95 > 5000) ? "warn" : "ok";
@@ -282,7 +321,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 콘텐츠: 캐시 빌드 실행(멱등 재사용) — spike/cache-build를 잡으로 ──
     if (req.method === "POST" && req.url?.startsWith("/admin/cache-build")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const cwd = fileURLToPath(new URL("../../../spike/", import.meta.url));
       const epId = new URL(req.url, "http://x").searchParams.get("ep") ?? DEFAULT_EP;
       const built = await new Promise<{ ok: boolean; tail: string }>((done) => {
@@ -339,7 +378,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 콘텐츠 공장: 씬 생성 + 검수(§4). intent는 코드가 고정, judge가 쓸 골격을 sceneGuard가 보증 ──
     if (req.method === "POST" && req.url?.startsWith("/admin/scene-gen")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       // 키 없어도 무료 Qwen(Ollama)으로 생성 — 503 차단 제거(Qwen 극한). 둘 다 없으면 gen_failed로 떨어짐.
       const body = parseBody<{ context: string; intent: string; strictness: Strictness; character?: string }>(await readBody(req));
       if (!body?.context || !body.intent || !body.strictness) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request", hint: "context·intent·strictness 필요" })); return; }
@@ -376,7 +415,7 @@ const server = createServer(async (req, res) => {
     }
     // ── 운영자: 초대 코드 생성 ──
     if (req.method === "POST" && req.url?.startsWith("/admin/invite")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const body = parseBody<{ note?: string }>(await readBody(req)) ?? {};
       const code = genInviteCode();
       invites.set(code, issueInvite(code, Date.now(), body.note));
@@ -386,20 +425,20 @@ const server = createServer(async (req, res) => {
     }
     // ── 운영자: 발급 목록(콘솔 회원 카테고리) ──
     if (req.method === "GET" && req.url?.startsWith("/admin/invites")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       res.end(JSON.stringify({ invites: [...invites.values()] }));
       return;
     }
     // ── 운영자: 가입 계정 목록(회원 관리) ──
     if (req.method === "GET" && req.url?.startsWith("/admin/accounts")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const list = [...accounts.values()].map((a) => ({ userId: a.userId, status: a.status, createdTs: a.createdTs }));
       res.end(JSON.stringify({ accounts: list, active: accounts.size, capacity: CAP }));
       return;
     }
     // ── 운영자: 계정 삭제(테스트 정리 + 잊혀질 권리 §9 — events purge·세션·코드 회수) ──
     if (req.method === "POST" && req.url?.startsWith("/admin/account/delete")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       const body = parseBody<{ userId: string }>(await readBody(req));
       if (!body?.userId) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request" })); return; }
       if (!accounts.has(body.userId)) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_account" })); return; }
@@ -416,8 +455,11 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && req.url?.startsWith("/auth/redeem")) {
       const body = parseBody<{ code: string; userId: string; consent: ConsentFlags }>(await readBody(req));
       if (!body?.code || !body.userId || !body.consent) { res.statusCode = 400; res.end(JSON.stringify({ error: "bad_request" })); return; }
-      const rd = redeemInvite(invites.get(body.code), body.userId, Date.now());
-      if (!rd.ok) { res.statusCode = 403; res.end(JSON.stringify({ error: `invite_${rd.reason}` })); return; }
+      // 초대코드 brute-force 차단 — IP당 분당 실패 한도 초과면 429
+      const ip = clientIp(req), now = Date.now();
+      if (!authFailOk(ip, now)) { res.statusCode = 429; res.end(JSON.stringify({ error: "too_many_attempts" })); return; }
+      const rd = redeemInvite(invites.get(body.code), body.userId, now);
+      if (!rd.ok) { recordAuthFail(ip, now); res.statusCode = 403; res.end(JSON.stringify({ error: `invite_${rd.reason}` })); return; }
       // [C3] 아래는 await 없이 동기 실행 — 정원 검사·예약이 원자적(동시 요청 정원 초과 방지).
       //      여기에 await를 새로 끼우면 race가 생기니 주의.
       const existing = accounts.get(body.userId);
@@ -459,6 +501,8 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "consent_required", hint: "POST /auth/redeem" }));
         return;
       }
+      // 분당 턴 상한(초당 연타 차단) — 일일 턴캡(canSpendTurn)과 별개의 burst 방어
+      if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
       let sess = sessions.get(sid);
       if (!sess) {
         const epId = new URL(req.url, "http://x").searchParams.get("ep") ?? DEFAULT_EP;
@@ -523,7 +567,7 @@ const server = createServer(async (req, res) => {
     }
     // 에러 추적(운영자) — 종류별 빈도·최근·점검 가이드(복구 명령 아님, 운영자가 조치)
     if (req.method === "GET" && req.url?.startsWith("/admin/errors")) {
-      if (!isAdmin(req)) { res.statusCode = 401; res.end(JSON.stringify({ error: "admin_only" })); return; }
+      if (!requireAdmin(req, res)) return;
       res.end(JSON.stringify(summarizeErrors(errorMeter)));
       return;
     }
