@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes, topicToScene, pickTopic, DAIKI_TOPICS } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, SceneLevel } from "@voicequest/engine";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runTurn, type TurnResult } from "./session";
@@ -71,6 +71,8 @@ const CAP = STAGE_LIMITS[STAGE].capacity;
 const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string; lastSeen: number }>();
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const dailyUsage = new Map<string, UsageState>(); // userId별 데일리 일일 턴캡(STT 폭주·예산 우회 차단, /session/turn과 같은 STAGE 캡 공유 / 인메모리·재시작 리셋 허용)
+const freetalkStates = new Map<string, { used: string[]; affinity: number; turns: number }>(); // 프리토크 세션 — 쓴 토픽·호감도·턴수(인메모리, 재시작 리셋)
+const FREETALK_FREE_TURNS = 10; // 무료 프리토크 일일 턴(캐시카우 BM: 무료 8~10턴 + 소진 시 강등)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
 // export — 통합 테스트가 실제 토큰/버전 게이트로 라우트를 검증(비밀값은 테스트 프로세스 내부에만, 로그 금지).
@@ -334,6 +336,43 @@ export const server = createServer(async (req, res) => {
       dailyStates.set(sid, ds);
       saveState();
       res.end(JSON.stringify({ grade: jr.grade, transcript, matched: jr.matched, expected: exp }));
+      return;
+    }
+    // 프리토크(캐시카우) — NPC가 토픽 질문 던짐 → 유저 자유발화 → OPIc rubric 평가 → 캐시 리액션. 토픽카드=골격(§0 준수, NPC 캐시).
+    if (req.method === "GET" && req.url?.startsWith("/freetalk?")) {
+      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      if (!accounts.has(sid)) { res.end(JSON.stringify({ topic: null })); return; } // 미인증 가드(누수·DoS)
+      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
+      const topic = pickTopic(DAIKI_TOPICS, st.used);
+      res.end(JSON.stringify({ topic: topic ? { id: topic.id, question: topic.question } : null, affinity: st.affinity, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
+      return;
+    }
+    if (req.method === "POST" && req.url?.startsWith("/freetalk/turn")) {
+      const u = new URL(req.url, "http://x");
+      const sid = u.searchParams.get("sid") ?? "", topicId = u.searchParams.get("topic") ?? "";
+      if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
+      if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
+      const fUsage = dailyUsage.get(sid) ?? { turnsToday: 0, dayStamp: today() };
+      if (!canSpendTurn(fUsage, STAGE, today())) { res.statusCode = 429; res.end(JSON.stringify({ error: "daily_turn_cap", cap: STAGE_LIMITS[STAGE].dailyTurnCap })); return; }
+      const topic = DAIKI_TOPICS.find((t) => t.id === topicId);
+      if (!topic) { res.statusCode = 400; res.end(JSON.stringify({ error: "unknown_topic" })); return; }
+      const audio = await readBodyBuf(req, res); if (audio === null) return;
+      let transcript = "";
+      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → recovery 흡수 */ }
+      dailyUsage.set(sid, recordTurn(fUsage, today()));
+      costMeter = rollMonth(costMeter, monthKST());
+      costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // 프리토크는 매턴 judge(OPIc rubric) — 임베딩 게이트는 후속 최적화
+      const jr = await judge({ transcript, sttConfidence: 1, scene: topicToScene(topic), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
+      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
+      if (!st.used.includes(topicId)) st.used.push(topicId);
+      st.affinity += jr.affinityDelta;
+      st.turns += 1;
+      freetalkStates.set(sid, st);
+      const ok = jr.grade === "S" || jr.grade === "A" || jr.grade === "B";
+      const reaction = jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
+      const next = pickTopic(DAIKI_TOPICS, st.used);
+      const done = st.turns >= FREETALK_FREE_TURNS;
+      res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question }, done, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
       return;
     }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──
