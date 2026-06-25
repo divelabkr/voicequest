@@ -23,7 +23,7 @@ function m4aToPcm(m4a: string, tmpWav: string): number[] {
       for (let i = off + 8; i < end; i += 2) pcm.push(buf.readInt16LE(i));
       return pcm;
     }
-    off += 8 + sz;
+    off += 8 + sz + (sz & 1); // 레드팀 M-2: WAV 청크 홀수 길이 시 1바이트 패딩 정렬
   }
   return [];
 }

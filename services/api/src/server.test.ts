@@ -171,3 +171,14 @@ describe("freetalkReaction (W4 fail-safe·안전 분기)", () => {
     expect(freetalkReaction("S", "next", true, true)).toContain("やめておこう");
   });
 });
+
+describe("세션 데이터 IDOR 게이트(레드팀)", () => {
+  it("미가입 sid로 /session/result → 403 (타유저 프로필 차단)", async () => {
+    const r = await fetch(`${base}/session/result?sid=nonexistent_user`, { headers: { "x-app-version": APP_VER } });
+    expect(r.status).toBe(403);
+  });
+  it("미가입 sid로 /session/signals → 403", async () => {
+    const r = await fetch(`${base}/session/signals?sid=nonexistent_user`, { headers: { "x-app-version": APP_VER } });
+    expect(r.status).toBe(403);
+  });
+});
