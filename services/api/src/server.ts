@@ -364,13 +364,14 @@ export const server = createServer(async (req, res) => {
       costMeter = rollMonth(costMeter, monthKST());
       costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // 프리토크는 매턴 judge(OPIc rubric) — 임베딩 게이트는 후속 최적화
       const jr = await judge({ transcript, sttConfidence: 1, scene: topicToScene(topic), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
+      const harmful = jr.category === "inappropriate" || jr.category === "harmful"; // 미성년·안전 — 부적절/위험 발화 흡수(§5 판단 않고 통제)
       const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
       if (!st.used.includes(topicId)) st.used.push(topicId);
-      st.affinity += jr.affinityDelta;
+      st.affinity += harmful ? -1 : jr.affinityDelta; // 부적절 시 호감도 냉각
       st.turns += 1;
       freetalkStates.set(sid, st);
-      const ok = jr.grade === "S" || jr.grade === "A" || jr.grade === "B";
-      const reaction = jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
+      const ok = !harmful && (jr.grade === "S" || jr.grade === "A" || jr.grade === "B");
+      const reaction = harmful ? "うーん、その話はやめておこうか。別のことを話そう。" : jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
       const next = pickTopic(DAIKI_TOPICS, st.used);
       const done = st.turns >= FREETALK_FREE_TURNS;
       res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question }, done, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
