@@ -375,6 +375,7 @@ export const server = createServer(async (req, res) => {
       st.affinity += harmful ? -1 : jr.affinityDelta; // 부적절 시 호감도 냉각
       st.turns += 1;
       freetalkStates.set(sid, st);
+      saveState(); // W2 — 갱신을 디스크에 영속(디바운스). turn마다 set만 하면 재시작 시 turns·호감도 소실
       const ok = !harmful && !uncertain && (jr.grade === "S" || jr.grade === "A" || jr.grade === "B");
       const reaction = harmful ? "うーん、その話はやめておこうか。別のことを話そう。" : uncertain ? "うーん、そっか。" : jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
       const next = pickTopic(DAIKI_TOPICS, st.used);
