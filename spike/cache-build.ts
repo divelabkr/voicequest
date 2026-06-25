@@ -64,7 +64,8 @@ const LINES = [...SCENE_LINES, ...ACK_LINES, ...AIZUCHI_LINES];
 
 async function main(): Promise<void> {
   const outDir = new URL(`../content_cache/${SHORT}/`, import.meta.url);
-  mkdirSync(new URL("audio/", outDir), { recursive: true });
+  const sharedDir = new URL("../content_cache/_shared/audio/", import.meta.url); // ep 간 전역 공유(§11 전역 dedup — 추임새·공통대사 1벌)
+  mkdirSync(sharedDir, { recursive: true });
   const kuroshiro = new Kuroshiro();
   await kuroshiro.init(new KuromojiAnalyzer());
   const tokenizer: { tokenize(s: string): Array<{ surface_form: string; basic_form: string }> } = await new Promise((res, rej) =>
@@ -75,25 +76,26 @@ async function main(): Promise<void> {
     const { text, voice } = LINES[i]!;
     // content-hash 파일명 — 같은 (발화·화자)는 1벌만 저장(§11 dedup). 프리토크 토픽·리액션 곱셈을 흡수.
     const hash = assetHash(text + "" + voice);
-    const m4aRel = `audio/${hash}.m4a`;
-    const m4aUrl = new URL(m4aRel, outDir);
+    const m4aUrl = new URL(`${hash}.m4a`, sharedDir);
+    const epLocalUrl = new URL(`audio/${hash}.m4a`, outDir);
     const legacyUrl = new URL(`audio/line_${i}.m4a`, outDir); // 인덱스 파일명 → hash 무손실 이전
-    let audio = m4aRel;
+    const audio = `/cache/_shared/audio/${hash}.m4a`;
     let bytes = 0;
     if (existsSync(m4aUrl)) {
       bytes = readFileSync(m4aUrl).length; // dedup·멱등: 같은 hash 재사용(중복 발화 추가 0바이트)
+    } else if (existsSync(epLocalUrl)) {
+      renameSync(fileURLToPath(epLocalUrl), fileURLToPath(m4aUrl)); bytes = readFileSync(m4aUrl).length;
     } else if (existsSync(legacyUrl)) {
-      renameSync(fileURLToPath(legacyUrl), fileURLToPath(m4aUrl)); // 마이그레이션: 재TTS 0(파일명만 hash로)
-      bytes = readFileSync(m4aUrl).length;
+      renameSync(fileURLToPath(legacyUrl), fileURLToPath(m4aUrl)); bytes = readFileSync(m4aUrl).length;
     } else {
       let wav: Buffer;
       try { wav = await tts(text, voice); }
       catch (e) { console.log(`  ⚠ [${i}] TTS 실패 → 자막으로 진행: ${String(e).slice(0, 40)}`); continue; }
-      const wavUrl = new URL(`audio/${hash}.wav`, outDir);
+      const wavUrl = new URL(`${hash}.wav`, sharedDir);
       writeFileSync(wavUrl, wav);
       bytes = wav.length;
       try { execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", fileURLToPath(wavUrl), fileURLToPath(m4aUrl)]); bytes = readFileSync(m4aUrl).length; rmSync(fileURLToPath(wavUrl)); }
-      catch { audio = `audio/${hash}.wav`; }
+      catch { continue; }
     }
     const furigana = await kuroshiro.convert(text, { mode: "okurigana", to: "hiragana" });
     const words = tokenizer.tokenize(text)
