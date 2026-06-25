@@ -161,6 +161,7 @@ function sweepMaps(now: number): void {
   for (const [k, v] of turnRate) if (v.min < min) turnRate.delete(k);
   for (const [k, v] of authFail) if (v.min < min) authFail.delete(k);
   for (const [k, v] of sessions) if (now - v.lastSeen > SESSION_TTL_MS) sessions.delete(k);
+  for (const k of dailyStates.keys()) if (!accounts.has(k)) dailyStates.delete(k); // accounts 없는 orphan(탈퇴·잔여) 정리 — 무한 증가 차단
 }
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
@@ -251,6 +252,7 @@ export const server = createServer(async (req, res) => {
     // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭
     if (req.method === "GET" && req.url?.startsWith("/daily?")) {
       const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      if (!accounts.has(sid)) { res.end(JSON.stringify({ cards: [], streak: 0 })); return; } // 미인증 sid가 dailyStates를 생성 못하게(메모리 누수·DoS 차단)
       let ds = dailyStates.get(sid);
       if (!ds) { ds = { cards: [], streak: 0, lastDoneDay: 0 }; dailyStates.set(sid, ds); }
       let cards = todaysCards(ds, Date.now(), 3);
