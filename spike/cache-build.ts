@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { encodeM4a, audioBackend } from "./audio-convert";
 import { assetHash, buildManifest, EPISODE_BYTE_BUDGET, DAIKI_TOPICS } from "@voicequest/engine";
 import { makeCollageMusic } from "./music-collage";
 const require = createRequire(import.meta.url);
@@ -69,6 +69,7 @@ const FREETALK_LINES = EP_ID === "ep_01_daiki_diner"
 const LINES = [...SCENE_LINES, ...ACK_LINES, ...AIZUCHI_LINES, ...FREETALK_LINES];
 
 async function main(): Promise<void> {
+  if (audioBackend() === "none") { console.error("⛔ 오디오 백엔드 없음(afconvert macOS·ffmpeg linux 둘 다 부재) — 음성/음악 빌드 불가. Dockerfile에 ffmpeg 추가 또는 macOS 빌드타임 실행(산출물은 git baked-in이라 런타임 서빙은 OK)."); process.exit(1); }
   const outDir = new URL(`../content_cache/${SHORT}/`, import.meta.url);
   const sharedDir = new URL("../content_cache/_shared/audio/", import.meta.url); // ep 간 전역 공유(§11 전역 dedup — 추임새·공통대사 1벌)
   mkdirSync(sharedDir, { recursive: true });
@@ -100,8 +101,8 @@ async function main(): Promise<void> {
       const wavUrl = new URL(`${hash}.wav`, sharedDir);
       writeFileSync(wavUrl, wav);
       bytes = wav.length;
-      try { execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", fileURLToPath(wavUrl), fileURLToPath(m4aUrl)]); bytes = readFileSync(m4aUrl).length; rmSync(fileURLToPath(wavUrl)); }
-      catch { continue; }
+      try { encodeM4a(fileURLToPath(wavUrl), fileURLToPath(m4aUrl)); bytes = readFileSync(m4aUrl).length; rmSync(fileURLToPath(wavUrl)); }
+      catch (e) { console.error(`  ⚠ [${i}] 인코딩 실패(backend=${audioBackend()}): ${String(e).slice(0, 70)}`); rmSync(fileURLToPath(wavUrl), { force: true }); continue; } // H-1: silent fail 제거 + wav 고아 정리
     }
     const furigana = await kuroshiro.convert(text, { mode: "okurigana", to: "hiragana" });
     const words = tokenizer.tokenize(text)

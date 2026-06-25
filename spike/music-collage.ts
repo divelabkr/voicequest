@@ -1,9 +1,9 @@
 // 캐시 음성 재활용 콜라주 — MusicPort 구현(어댑터). 빌드타임(afconvert macOS), 산출 .m4a는 git/배포.
 // pad=피치↓ 패드 / rhythm=박자 루프 / accent=악센트 + 에코·페이드. 신규 TTS 0(§3·§11 BGM 자리).
 // production 승격 시 packages/adapters/music-collage로 이동(현재 spike — cache-build가 import).
-import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import type { MusicPort, MusicSpec, AudioAsset } from "@voicequest/engine";
+import { decodeWav, encodeM4a } from "./audio-convert";
 
 const SR = 24000;
 const sec = (x: number): number => Math.floor(x * SR);
@@ -11,7 +11,7 @@ const clamp = (v: number): number => (v < -32768 ? -32768 : v > 32767 ? 32767 : 
 
 // m4a(aac) → PCM number[] — afconvert 역변환 후 wav 'data' 청크 파싱(헤더 가변 대비 청크 순회).
 function m4aToPcm(m4a: string, tmpWav: string): number[] {
-  execFileSync("afconvert", ["-f", "WAVE", "-d", `LEI16@${SR}`, m4a, tmpWav]);
+  decodeWav(m4a, tmpWav, SR);
   const buf = readFileSync(tmpWav);
   let off = 12;
   while (off < buf.length - 8) {
@@ -77,7 +77,7 @@ export function makeCollageMusic(opts: { audioDir: string; outDir: string; tmpDi
       for (let i = 0; i < total; i++) pcm.writeInt16LE(mix[i]!, i * 2);
       writeFileSync(`${opts.tmpDir}/music.wav`, Buffer.concat([wavHeader(pcm.length), pcm]));
       const out = `${opts.outDir}/${spec.kind}.m4a`;
-      execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", `${opts.tmpDir}/music.wav`, out]);
+      encodeM4a(`${opts.tmpDir}/music.wav`, out);
       return { url: out, bytes: readFileSync(out).length, format: "m4a", synthId: true };
     },
   };
