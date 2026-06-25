@@ -145,7 +145,7 @@ function markPlayed(){ try{ localStorage.setItem('vq_played','1'); }catch(e){} }
 function selectView(){
   const app=document.getElementById('app');
   var firstTime=!localStorage.getItem('vq_played');
-  app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div onclick="dailyView()" style="cursor:pointer;border:2px solid var(--primary);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--primary-soft)"><b style="font-size:17px">🔥 오늘의 3마디</b><div class="sub" style="margin:4px 0 0;color:var(--primary)">1분 발화 연습 · 매일 스트릭</div></div><div onclick="shadowSetup()" style="cursor:pointer;border:.5px solid var(--accent);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--accent-soft)"><b style="font-size:17px">🗣 따라하기</b>'+(firstTime?'<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:9999px;padding:2px 8px;margin-left:6px">처음이면 여기부터</span>':'')+'<div class="sub" style="margin:4px 0 0;color:var(--accent)">정답을 듣고 따라 말하기 · 레벨·테마 선택</div></div><div class="sub" style="margin-bottom:12px">또는 에피소드 모험</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
+  app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div onclick="dailyView()" style="cursor:pointer;border:2px solid var(--primary);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--primary-soft)"><b style="font-size:17px">🔥 오늘의 3마디</b><div class="sub" style="margin:4px 0 0;color:var(--primary)">1분 발화 연습 · 매일 스트릭</div></div><div onclick="shadowSetup()" style="cursor:pointer;border:.5px solid var(--accent);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--accent-soft)"><b style="font-size:17px">🗣 따라하기</b>'+(firstTime?'<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:9999px;padding:2px 8px;margin-left:6px">처음이면 여기부터</span>':'')+'<div class="sub" style="margin:4px 0 0;color:var(--accent)">정답을 듣고 따라 말하기 · 레벨·테마 선택</div></div><div onclick="freetalkView()" style="cursor:pointer;border:.5px solid var(--accent);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--card)"><b style="font-size:17px">💬 다이키와 수다</b><div class="sub" style="margin:4px 0 0;color:var(--muted)">토픽에 자유롭게 대답 · 무료 10턴/일</div></div><div class="sub" style="margin-bottom:12px">또는 에피소드 모험</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
   fetch(API+'/episodes').then(function(r){return r.json()}).then(function(j){
     window._epAizu={};
     document.getElementById('epCards').innerHTML=(j.episodes||[]).map(function(e){
@@ -254,6 +254,50 @@ async function shadowMic(){
     if(ok)st.done++;
     setTimeout(function(){ st.idx++; shadowCard(); },1700);
   }catch(e){ document.getElementById('sresult').textContent='오류: '+e; mic.disabled=false; mic.textContent='🎤 다시'; }
+}
+// ── 프리토크(캐시카우) — NPC 토픽 질문 → 자유 대답 → OPIc rubric → 캐시 리액션. 4분할(topic→talk→closer) ──
+async function freetalkView(){
+  markPlayed();
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="center"><div class="sub">다이키와 수다 준비 중…</div></div>';
+  let d; try{ d=await (await fetch(API+'/freetalk?sid='+userId)).json(); }catch(e){ app.innerHTML='<div class="center"><div class="err">로드 실패</div></div>'; return; }
+  window._ft={topic:d.topic, affinity:d.affinity||0, remain:d.remain||0, log:[]};
+  freetalkCard();
+}
+function freetalkCard(){
+  var st=window._ft; const app=document.getElementById('app');
+  if(!st.topic){ freetalkDone(); return; }
+  app.innerHTML='<div class="hdr"><b>다이키와 수다</b><span><span class="sub" style="margin-right:10px">남은 '+st.remain+'턴</span><span style="color:var(--accent)">♥ '+st.affinity+'</span></span></div>'
+    +'<div class="log" id="ftlog">'+st.log.join('')+'</div>'
+    +'<div style="padding:16px;text-align:center"><div class="bubble npc" style="display:inline-block;text-align:left;max-width:90%"><b>다이키</b> '+esc2(st.topic.question)+'</div>'
+    +'<button class="mic" id="ftmic" style="margin-top:18px">🎤 눌러서 대답하기</button>'
+    +'<div id="ftresult" style="margin-top:12px;min-height:24px"></div></div>';
+  document.getElementById('ftmic').onclick=freetalkMic;
+  if(st.topic.audioUrl){ try{ new Audio(API+st.topic.audioUrl).play(); }catch(e){ shadowSpeak(st.topic.question); } } else shadowSpeak(st.topic.question);
+}
+async function freetalkMic(){
+  var mic=document.getElementById('ftmic');
+  if(!rec){
+    try{ const stream=await navigator.mediaDevices.getUserMedia({audio:true}); recChunks=[]; rec=new MediaRecorder(stream); rec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data)}; rec.start(); mic.textContent='■ 멈추고 전송'; mic.classList.add('rec'); }catch(e){ alert('마이크 권한이 필요해요'); }
+    return;
+  }
+  mic.classList.remove('rec'); mic.textContent='듣는 중…'; mic.disabled=true;
+  var blob=await new Promise(function(res){ rec.onstop=function(){ rec.stream.getTracks().forEach(function(t){t.stop()}); res(new Blob(recChunks,{type:'audio/webm'})); }; rec.stop(); }); rec=null;
+  var st=window._ft;
+  try{
+    var r=await fetch(API+'/freetalk/turn?sid='+userId+'&topic='+encodeURIComponent(st.topic.id),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
+    var j=await r.json();
+    st.log.push('<div class="bubble you">'+esc2(j.transcript||'(못 알아들음)')+'</div>');
+    st.log.push('<div class="bubble npc"><b>다이키</b> '+esc2(j.reaction||'')+'</div>');
+    st.affinity=j.affinity; st.remain=j.remain;
+    if(j.reactionAudio){ try{ new Audio(API+j.reactionAudio).play(); }catch(e){ shadowSpeak(j.reaction||''); } } else shadowSpeak(j.reaction||'');
+    if(j.done){ st.topic=null; setTimeout(freetalkDone,1600); }
+    else { st.topic=j.nextTopic; setTimeout(freetalkCard,1600); }
+  }catch(e){ document.getElementById('ftresult').textContent='오류: '+e; mic.disabled=false; mic.textContent='🎤 다시'; }
+}
+function freetalkDone(){
+  var st=window._ft; const app=document.getElementById('app');
+  app.innerHTML='<div class="center" style="text-align:center"><h1>오늘의 수다 끝!</h1><div class="sub">다이키와 충분히 얘기했어요 · ♥ '+st.affinity+'</div><div class="sub" style="margin-top:8px">무료 한도를 다 썼어요 — 내일 또, 또는 구독으로 무제한</div><button class="btn cta" style="margin-top:20px" onclick="shadowSetup()">따라하기로 복습</button><button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="selectView()">돌아가기</button></div>';
 }
 function shadowDone(){
   var st=window._shadow; const app=document.getElementById('app');

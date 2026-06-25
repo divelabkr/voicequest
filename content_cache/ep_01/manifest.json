@@ -3,7 +3,7 @@
   "lines": [
     {
       "text": "いらっしゃいませ！",
-      "audio": "audio/21fb12d4.m4a",
+      "audio": "/cache/_shared/audio/21fb12d4.m4a",
       "furigana": "いらっしゃいませ！",
       "words": [],
       "bytes": 9551,
@@ -11,7 +11,7 @@
     },
     {
       "text": "あ、今ちょっと混んでてね…まあまあ、立ち話もなんだし、座って座って",
-      "audio": "audio/7effd60b.m4a",
+      "audio": "/cache/_shared/audio/7effd60b.m4a",
       "furigana": "あ、今(いま)ちょっと混(こ)んでてね…まあまあ、立(た)ち話(ばなし)もなんだし、座(すわ)って座(すわ)って",
       "words": [
         {
@@ -40,7 +40,7 @@
     },
     {
       "text": "お、座れた？じゃあ注文決めよっか。何にする？",
-      "audio": "audio/2f52598a.m4a",
+      "audio": "/cache/_shared/audio/2f52598a.m4a",
       "furigana": "お、座(すわ)れた？じゃあ注文(ちゅうもん)決(き)めよっか。何(なに)にする？",
       "words": [
         {
@@ -53,7 +53,7 @@
     },
     {
       "text": "あいよ、ラーメンね！…そうだ、初めてなら今日のおすすめも気になる？",
-      "audio": "audio/fecd92b5.m4a",
+      "audio": "/cache/_shared/audio/fecd92b5.m4a",
       "furigana": "あいよ、ラーメンね！…そうだ、初(はじ)めてなら今日(きょう)のおすすめも気(き)になる？",
       "words": [],
       "bytes": 29910,
@@ -61,7 +61,7 @@
     },
     {
       "text": "ここの味噌ラーメン、まじで最高だよ！",
-      "audio": "audio/ad73002c.m4a",
+      "audio": "/cache/_shared/audio/ad73002c.m4a",
       "furigana": "ここの味噌(みそ)ラーメン、まじで最高(さいこう)だよ！",
       "words": [],
       "bytes": 27503,
@@ -69,7 +69,7 @@
     },
     {
       "text": "はい、お待たせ！アツアツのラーメンだよ。…食べてみて、どう？",
-      "audio": "audio/5e45a63f.m4a",
+      "audio": "/cache/_shared/audio/5e45a63f.m4a",
       "furigana": "はい、お待(ま)たせ！アツアツのラーメンだよ。…食(た)べてみて、どう？",
       "words": [],
       "bytes": 24787,
@@ -77,7 +77,7 @@
     },
     {
       "text": "おっ、きれいに完食だね！ありがとう。お会計する？",
-      "audio": "audio/fdcad6b2.m4a",
+      "audio": "/cache/_shared/audio/fdcad6b2.m4a",
       "furigana": "おっ、きれいに完(かん)食(しょく)だね！ありがとう。お会計(かいけい)する？",
       "words": [
         {
@@ -90,7 +90,7 @@
     },
     {
       "text": "はい、ちょうどいただきました！今日はありがとね",
-      "audio": "audio/93e6c367.m4a",
+      "audio": "/cache/_shared/audio/93e6c367.m4a",
       "furigana": "はい、ちょうどいただきました！今日(きょう)はありがとね",
       "words": [],
       "bytes": 29904,
@@ -98,7 +98,7 @@
     },
     {
       "text": "そういえば、君どこから来たの？日本の感想とか、よかったら聞かせてよ",
-      "audio": "audio/8f71061d.m4a",
+      "audio": "/cache/_shared/audio/8f71061d.m4a",
       "furigana": "そういえば、君(きみ)どこから来(き)たの？日本(にっぽん)の感想(かんそう)とか、よかったら聞(き)かせてよ",
       "words": [
         {
@@ -111,7 +111,7 @@
     },
     {
       "text": "おっ、いいね！",
-      "audio": "audio/cf83d830.m4a",
+      "audio": "/cache/_shared/audio/cf83d830.m4a",
       "furigana": "おっ、いいね！",
       "words": [],
       "bytes": 12110,
@@ -119,7 +119,7 @@
     },
     {
       "text": "はいよ、了解！",
-      "audio": "audio/e8bd8bf2.m4a",
+      "audio": "/cache/_shared/audio/e8bd8bf2.m4a",
       "furigana": "はいよ、了解(りょうかい)！",
       "words": [],
       "bytes": 16053,
@@ -127,7 +127,7 @@
     },
     {
       "text": "うん、なるほどね",
-      "audio": "audio/76cceaec.m4a",
+      "audio": "/cache/_shared/audio/76cceaec.m4a",
       "furigana": "うん、なるほどね",
       "words": [],
       "bytes": 16964,
@@ -135,7 +135,7 @@
     },
     {
       "text": "また来てね！またいつでもおいで",
-      "audio": "audio/33ea7245.m4a",
+      "audio": "/cache/_shared/audio/33ea7245.m4a",
       "furigana": "また来(き)てね！またいつでもおいで",
       "words": [],
       "bytes": 11052,
@@ -143,15 +143,23 @@
     },
     {
       "text": "もう一度どうぞ",
-      "audio": "audio/41339aa7.m4a",
+      "audio": "/cache/_shared/audio/41339aa7.m4a",
       "furigana": "もう一度(いちど)どうぞ",
       "words": [],
       "bytes": 12140,
       "hash": "41339aa7"
     },
     {
+      "text": "ゆっくりでいいよ、もう一度",
+      "audio": "/cache/_shared/audio/826ccdd4.m4a",
+      "furigana": "ゆっくりでいいよ、もう一度(いちど)",
+      "words": [],
+      "bytes": 17367,
+      "hash": "826ccdd4"
+    },
+    {
       "text": "うーん…",
-      "audio": "audio/3708a967.m4a",
+      "audio": "/cache/_shared/audio/3708a967.m4a",
       "furigana": "うーん…",
       "words": [],
       "bytes": 11003,
@@ -159,7 +167,7 @@
     },
     {
       "text": "えーと…",
-      "audio": "audio/b0db18be.m4a",
+      "audio": "/cache/_shared/audio/b0db18be.m4a",
       "furigana": "えーと…",
       "words": [],
       "bytes": 11870,
@@ -167,7 +175,7 @@
     },
     {
       "text": "あのー…",
-      "audio": "audio/aac3ad7e.m4a",
+      "audio": "/cache/_shared/audio/aac3ad7e.m4a",
       "furigana": "あのー…",
       "words": [],
       "bytes": 10851,
@@ -175,17 +183,97 @@
     },
     {
       "text": "んー…",
-      "audio": "audio/c6abd3e1.m4a",
+      "audio": "/cache/_shared/audio/c6abd3e1.m4a",
       "furigana": "んー…",
       "words": [],
       "bytes": 12064,
       "hash": "c6abd3e1"
+    },
+    {
+      "text": "君、出身はどこ？",
+      "audio": "/cache/_shared/audio/e5d949b7.m4a",
+      "furigana": "君(きみ)、出身(しゅっしん)はどこ？",
+      "words": [],
+      "bytes": 14524,
+      "hash": "e5d949b7"
+    },
+    {
+      "text": "好きな食べ物ってある？",
+      "audio": "/cache/_shared/audio/c30281f6.m4a",
+      "furigana": "好(す)きな食(た)べ物(もの)ってある？",
+      "words": [],
+      "bytes": 13765,
+      "hash": "c30281f6"
+    },
+    {
+      "text": "日本に来てどう？慣れた？",
+      "audio": "/cache/_shared/audio/167547ee.m4a",
+      "furigana": "日本(にっぽん)に来(き)てどう？慣(な)れた？",
+      "words": [],
+      "bytes": 16376,
+      "hash": "167547ee"
+    },
+    {
+      "text": "うちのラーメン、どうだった？",
+      "audio": "/cache/_shared/audio/411bfc2b.m4a",
+      "furigana": "うちのラーメン、どうだった？",
+      "words": [],
+      "bytes": 13352,
+      "hash": "411bfc2b"
+    },
+    {
+      "text": "休みの日は何してるの？",
+      "audio": "/cache/_shared/audio/13cf40a8.m4a",
+      "furigana": "休(やす)みの日(ひ)は何(なに)してるの？",
+      "words": [],
+      "bytes": 14094,
+      "hash": "13cf40a8"
+    },
+    {
+      "text": "へえ、いいね！もっと聞かせて。",
+      "audio": "/cache/_shared/audio/2ebc0abc.m4a",
+      "furigana": "へえ、いいね！もっと聞(き)かせて。",
+      "words": [],
+      "bytes": 16647,
+      "hash": "2ebc0abc"
+    },
+    {
+      "text": "なるほどね。",
+      "audio": "/cache/_shared/audio/8115c474.m4a",
+      "furigana": "なるほどね。",
+      "words": [],
+      "bytes": 12282,
+      "hash": "8115c474"
+    },
+    {
+      "text": "うーん、そっか。",
+      "audio": "/cache/_shared/audio/36c747cf.m4a",
+      "furigana": "うーん、そっか。",
+      "words": [],
+      "bytes": 16306,
+      "hash": "36c747cf"
+    },
+    {
+      "text": "ごめん、もう一度言ってくれる？",
+      "audio": "/cache/_shared/audio/d227f971.m4a",
+      "furigana": "ごめん、もう一度(いちど)言(い)ってくれる？",
+      "words": [],
+      "bytes": 16683,
+      "hash": "d227f971"
+    },
+    {
+      "text": "うーん、その話はやめておこうか。別のことを話そう。",
+      "audio": "/cache/_shared/audio/3423aa9e.m4a",
+      "furigana": "うーん、その話(はなし)はやめておこうか。別(べつ)のことを話(はな)そう。",
+      "words": [],
+      "bytes": 26824,
+      "hash": "3423aa9e"
     }
   ],
   "aizuchi": [
-    "audio/3708a967.m4a",
-    "audio/b0db18be.m4a",
-    "audio/aac3ad7e.m4a",
-    "audio/c6abd3e1.m4a"
+    "/cache/_shared/audio/3708a967.m4a",
+    "/cache/_shared/audio/b0db18be.m4a",
+    "/cache/_shared/audio/aac3ad7e.m4a",
+    "/cache/_shared/audio/c6abd3e1.m4a"
   ]
 }

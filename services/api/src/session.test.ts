@@ -60,6 +60,38 @@ describe("runTurn (1턴 오케스트레이션)", () => {
     expect(result.npcLine).toContain("もう一度");
   });
 
+  it("recovery 반복 시 recoveryFail 누적·단계 상승 — fail 3+는 'ゆっくり'(W6 死코드 연결)", async () => {
+    const { store } = makeStore();
+    const llm = llmWith({ grade: "C", matched: [], weaknessTags: [], affinityDelta: 0, nextSceneId: "recovery", reason: "" });
+    let state = initState(ep);
+    for (let i = 1; i <= 2; i++) { // fail 1~2 = hint·hum = 가벼운 격려
+      const r = await runTurn({ stt: sttMiss, llm, tts, store, episode: ep }, state, new ArrayBuffer(8), i);
+      state = r.state;
+      expect(state.recoveryFail).toBe(i);
+      expect(r.result.npcLine).toBe("もう一度どうぞ");
+    }
+    const r3 = await runTurn({ stt: sttMiss, llm, tts, store, episode: ep }, state, new ArrayBuffer(8), 3); // fail 3 = lead = 천천히 유도
+    expect(r3.state.recoveryFail).toBe(3);
+    expect(r3.result.npcLine).toBe("ゆっくりでいいよ、もう一度");
+  });
+
+  it("recovery 후 충족하면 recoveryFail 리셋(통과=0)", async () => {
+    const { store } = makeStore();
+    const recov = llmWith({ grade: "C", matched: [], weaknessTags: [], affinityDelta: 0, nextSceneId: "recovery", reason: "" });
+    let { state } = await runTurn({ stt: sttMiss, llm: recov, tts, store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
+    expect(state.recoveryFail).toBe(1);
+    ({ state } = await runTurn({ stt, llm: recov, tts, store, episode: ep }, state, new ArrayBuffer(8), 1)); // stt='一人です' fast-path 충족
+    expect(state.recoveryFail).toBe(0);
+    expect(state.currentSceneId).toBe("s2");
+  });
+
+  it("STT 신뢰도를 judge로 전달 — 낮으면 정답이어도 recovery 흡수(W3 실값, sttConfidence:1 하드코딩 회귀 차단)", async () => {
+    const sttLow: SttPort = { async transcribe() { return { text: "一人です", confidence: 0.2 }; } };
+    const llm = llmWith({ grade: "S", matched: ["一人です"], weaknessTags: [], affinityDelta: 2, nextSceneId: "next", reason: "" });
+    const { result } = await runTurn({ stt: sttLow, llm, tts, store: makeStore().store, episode: ep }, initState(ep), new ArrayBuffer(8), 0);
+    expect(result.nextSceneId).toBe("s1"); // confidence 0.2 < FLOOR(0.55) → fast 전 recovery. 하드코딩 1이었으면 통과해버림
+  });
+
   it("오디오 없으면 판정 않고 '당신 차례'(발화트리 폴링·입장)", async () => {
     const { store } = makeStore();
     const llm = llmWith({ grade: "S", matched: ["x"], weaknessTags: [], affinityDelta: 2, nextSceneId: "next", reason: "" });

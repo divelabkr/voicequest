@@ -1,7 +1,7 @@
 // 턴 루프 오케스트레이션 (CLAUDE.md §5) + 발화 트리.
 // beat가 npc/npc_push/npc_silent면 유저 발화를 무시하고 NPC가 능동 진행(awaitsUser=false).
 // user beat에서만 STT→judge→advance(음성 게이트).
-import { judge, advance, findScene, deflectionTone, affinityPenalty, adjustStrictness } from "@voicequest/engine";
+import { judge, advance, findScene, deflectionTone, affinityPenalty, adjustStrictness, recoveryStep } from "@voicequest/engine";
 import type {
   Episode,
   GameState,
@@ -47,6 +47,12 @@ export interface TurnMetrics {
 }
 
 const USER_BEAT: DialogueBeat = { kind: "user" };
+
+// recovery NPC 대사 — recoveryStep 단계(W6): hint·hum=가벼운 격려, lead·solo·echo=천천히 유도. 음성은 ACK 캐시 재사용(곱셈 1개).
+function recoveryNpcLine(recoveryFail: number): string {
+  const step = recoveryStep(Math.max(0, recoveryFail - 1));
+  return step === "lead" || step === "solo" || step === "echo" ? "ゆっくりでいいよ、もう一度" : "もう一度どうぞ";
+}
 
 export async function runTurn(
   deps: TurnDeps,
@@ -158,7 +164,7 @@ export async function runTurn(
   const adv = advance(state, jr, deps.episode, ts);
   // 직전 발화에 대한 ack 반응 — 다음 씬의 실제 선창은 beats 폴링이 잇는다(placeholder 노출 제거).
   const npcLine =
-    jr.nextSceneId === "recovery" ? "もう一度どうぞ"
+    jr.nextSceneId === "recovery" ? recoveryNpcLine(adv.state.recoveryFail)
       : adv.state.done ? (scene.register === "polite" ? "ご利用ありがとうございました。またどうぞ。" : "また来てね！") : ackLine(jr.grade, scene.register, deps.episode.ackLines);
   const audioUrl = await safeSynth(deps.tts,npcLine, deps.episode.character);
   await deps.store.append({

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { assetHash, buildManifest, EPISODE_BYTE_BUDGET } from "@voicequest/engine";
+import { assetHash, buildManifest, EPISODE_BYTE_BUDGET, DAIKI_TOPICS } from "@voicequest/engine";
 const require = createRequire(import.meta.url);
 
 const raw = readFileSync(new URL("../.env", import.meta.url), "utf8");
@@ -56,11 +56,16 @@ const NPCS = epData.npcs ?? [];
 const MAIN_VOICE = NPCS.find((n) => n.id === epData.character)?.voiceName ?? "Fenrir";
 const voiceOf = (speaker?: string): string => (speaker ? NPCS.find((n) => n.id === speaker)?.voiceName : undefined) ?? MAIN_VOICE;
 const SCENE_LINES = epData.scenes.flatMap((s) => (s.beats ?? []).filter((b) => (b.kind === "npc" || b.kind === "npc_push") && b.line).map((b) => ({ text: b.line as string, voice: voiceOf(b.speaker) })));
-const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ"].map((t) => ({ text: t, voice: MAIN_VOICE }));
+const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ", "ゆっくりでいいよ、もう一度"].map((t) => ({ text: t, voice: MAIN_VOICE }));
 // 음성 추임새 — 발화 끝 즉시 재생해 LLM 판정 구간을 병렬로 흡수(끊김 없는 대화감). 짧은 생각소리, 응답까지 연쇄.
 const AIZUCHI = ["うーん…", "えーと…", "あのー…", "んー…"];
 const AIZUCHI_LINES = AIZUCHI.map((t) => ({ text: t, voice: MAIN_VOICE }));
-const LINES = [...SCENE_LINES, ...ACK_LINES, ...AIZUCHI_LINES];
+// 프리토크 — 토픽 질문 + 리액션 음성(다이키만). 텍스트는 server /freetalk reaction과 일치(manifest byNorm 매칭).
+const FREETALK_LINES = EP_ID === "ep_01_daiki_diner"
+  ? [...DAIKI_TOPICS.map((t) => ({ text: t.question, voice: MAIN_VOICE })),
+     ...["へえ、いいね！もっと聞かせて。", "なるほどね。", "うーん、そっか。", "ごめん、もう一度言ってくれる？", "うーん、その話はやめておこうか。別のことを話そう。"].map((t) => ({ text: t, voice: MAIN_VOICE }))]
+  : [];
+const LINES = [...SCENE_LINES, ...ACK_LINES, ...AIZUCHI_LINES, ...FREETALK_LINES];
 
 async function main(): Promise<void> {
   const outDir = new URL(`../content_cache/${SHORT}/`, import.meta.url);
