@@ -13,7 +13,7 @@ process.env.DEEPGRAM_KEY = process.env.DEEPGRAM_KEY || "ci-dummy-deepgram";
 process.env.ADMIN_TOKEN = process.env.ADMIN_TOKEN || "ci-dummy-admin-token";
 
 // 동적 import — 위 env 설정이 모듈 로드 시점에 반영되도록(정적 import는 호이스팅돼 env보다 먼저 평가됨).
-const { server, ADMIN_TOKEN, MIN_APP_VERSION, AUTH_FAIL_PER_MIN, TURN_PER_MIN, turnRateOk, __resetGates } =
+const { server, ADMIN_TOKEN, MIN_APP_VERSION, AUTH_FAIL_PER_MIN, TURN_PER_MIN, turnRateOk, freetalkReaction, __resetGates } =
   await import("./server");
 
 const APP_VER = "1.0.0"; // 버전 게이트 통과용 헤더(MIN과 동일 → needsUpdate=false). 비-게이트 케이스 전부에 부착.
@@ -147,5 +147,27 @@ describe("turnRateOk (turn 분당 burst 게이트)", () => {
     for (let i = 0; i < TURN_PER_MIN; i++) turnRateOk(sid, m0);
     expect(turnRateOk(sid, m0)).toBe(false);      // 같은 분 초과
     expect(turnRateOk(sid, m0 + 60_000)).toBe(true); // 다음 분 → 리셋
+  });
+});
+
+describe("freetalkReaction (W4 fail-safe·안전 분기)", () => {
+  it("harmful → deflection(주제 전환, §5 흡수)", () => {
+    expect(freetalkReaction("A", "next", true, false)).toContain("やめておこう");
+  });
+  it("W4 fail-safe: uncertain(category 누락+grade통과) → 중립으로 보류(긍정 억제)", () => {
+    expect(freetalkReaction("S", "next", false, true)).toBe("うーん、そっか。");
+  });
+  it("정상 통과(S/A)+uncertain=false → 긍정 리액션(과차단 아님)", () => {
+    expect(freetalkReaction("A", "next", false, false)).toContain("いいね");
+    expect(freetalkReaction("S", "next", false, false)).toContain("いいね");
+  });
+  it("recovery → 되묻기(흡수)", () => {
+    expect(freetalkReaction("C", "recovery", false, false)).toContain("もう一度");
+  });
+  it("B → 중간 반응", () => {
+    expect(freetalkReaction("B", "next", false, false)).toBe("なるほどね。");
+  });
+  it("harmful이 uncertain보다 우선(안전 최우선)", () => {
+    expect(freetalkReaction("S", "next", true, true)).toContain("やめておこう");
   });
 });
