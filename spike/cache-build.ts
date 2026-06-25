@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, renameSync 
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { assetHash, buildManifest, EPISODE_BYTE_BUDGET, DAIKI_TOPICS } from "@voicequest/engine";
+import { makeCollageMusic } from "./music-collage";
 const require = createRequire(import.meta.url);
 
 const raw = readFileSync(new URL("../.env", import.meta.url), "utf8");
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
   const tokenizer: { tokenize(s: string): Array<{ surface_form: string; basic_form: string }> } = await new Promise((res, rej) =>
     kuromoji.builder({ dicPath }).build((e: unknown, t: unknown) => (e ? rej(e) : res(t as never))));
 
-  const lines = [];
+  const lines: { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[]; bytes: number; hash: string }[] = [];
   for (let i = 0; i < LINES.length; i++) {
     const { text, voice } = LINES[i]!;
     // content-hash 파일명 — 같은 (발화·화자)는 1벌만 저장(§11 dedup). 프리토크 토픽·리액션 곱셈을 흡수.
@@ -111,7 +112,19 @@ async function main(): Promise<void> {
   }
   // aizuchi — 추임새 audio만 따로 노출(웹이 발화 끝 즉시 연쇄 재생 → LLM 구간 흡수)
   const aizuchi = lines.filter((l) => AIZUCHI.includes(l.text)).map((l) => l.audio);
-  writeFileSync(new URL("manifest.json", outDir), JSON.stringify({ episode: SHORT, lines, aizuchi }, null, 2));
+  // 엔딩 테마 — 캐시 음성 콜라주(MusicPort, 신규 TTS 0·§11 BGM 자리). 음성 빌드 후 자동 생성.
+  let bgm: { ending: string; bytes: number } | undefined;
+  const hashOf = (frag: string): string | undefined => lines.find((l) => l.text.includes(frag))?.hash;
+  const padH = hashOf("また来てね"), accentH = hashOf("いいね");
+  const rhythmH = ["うーん", "えーと", "あのー", "んー"].map(hashOf).filter((h): h is string => !!h);
+  if (padH && rhythmH.length >= 2) {
+    const a = await makeCollageMusic({ audioDir: fileURLToPath(sharedDir), outDir: fileURLToPath(new URL("bgm/", outDir)), tmpDir: "/tmp/vq-music" })
+      .gen({ prompt: `${EP_ID} 엔딩 테마`, durationSec: 12, loop: false, kind: "ending",
+        sources: [{ hash: padH, role: "pad" }, ...rhythmH.map((h) => ({ hash: h, role: "rhythm" as const })), ...(accentH ? [{ hash: accentH, role: "accent" as const }] : [])] });
+    bgm = { ending: `/cache/${SHORT}/bgm/ending.m4a`, bytes: a.bytes };
+    console.log(`  🎵 엔딩 테마(콜라주): ${(a.bytes / 1024).toFixed(0)}KB · 소스 ${1 + rhythmH.length + (accentH ? 1 : 0)}개`);
+  }
+  writeFileSync(new URL("manifest.json", outDir), JSON.stringify({ episode: SHORT, lines, aizuchi, bgm }, null, 2));
   // §11 dedup·예산 강제 — engine buildManifest로 고유 자산만 카운트, 8MB 초과 시 빌드 실패
   const entries = lines.map((l) => ({ key: l.text, hash: l.hash, url: l.audio, bytes: l.bytes, format: l.audio.endsWith(".m4a") ? "m4a" : "wav", kind: "voice" as const }));
   const mani = buildManifest(SHORT, entries);

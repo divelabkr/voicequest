@@ -275,5 +275,9 @@
     "/cache/_shared/audio/b0db18be.m4a",
     "/cache/_shared/audio/aac3ad7e.m4a",
     "/cache/_shared/audio/c6abd3e1.m4a"
-  ]
+  ],
+  "bgm": {
+    "ending": "/cache/ep_01/bgm/ending.m4a",
+    "bytes": 53422
+  }
 }
