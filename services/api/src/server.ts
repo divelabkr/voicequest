@@ -345,7 +345,8 @@ export const server = createServer(async (req, res) => {
       if (!accounts.has(sid)) { res.end(JSON.stringify({ topic: null })); return; } // 미인증 가드(누수·DoS)
       const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
       const topic = pickTopic(DAIKI_TOPICS, st.used);
-      res.end(JSON.stringify({ topic: topic ? { id: topic.id, question: topic.question } : null, affinity: st.affinity, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
+      const qa = topic ? MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(topic.question)) : undefined;
+      res.end(JSON.stringify({ topic: topic ? { id: topic.id, question: topic.question, audioUrl: qa && qa.audio.startsWith("/") ? qa.audio : "" } : null, affinity: st.affinity, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
       return;
     }
     if (req.method === "POST" && req.url?.startsWith("/freetalk/turn")) {
@@ -374,7 +375,8 @@ export const server = createServer(async (req, res) => {
       const reaction = harmful ? "うーん、その話はやめておこうか。別のことを話そう。" : jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
       const next = pickTopic(DAIKI_TOPICS, st.used);
       const done = st.turns >= FREETALK_FREE_TURNS;
-      res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question }, done, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
+      const ra = MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(reaction)); const na = next ? MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(next.question)) : undefined;
+      res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, reactionAudio: ra && ra.audio.startsWith("/") ? ra.audio : "", affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question, audioUrl: na && na.audio.startsWith("/") ? na.audio : "" }, done, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
       return;
     }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──

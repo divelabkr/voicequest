@@ -273,7 +273,7 @@ function freetalkCard(){
     +'<button class="mic" id="ftmic" style="margin-top:18px">🎤 눌러서 대답하기</button>'
     +'<div id="ftresult" style="margin-top:12px;min-height:24px"></div></div>';
   document.getElementById('ftmic').onclick=freetalkMic;
-  shadowSpeak(st.topic.question);
+  if(st.topic.audioUrl){ try{ new Audio(API+st.topic.audioUrl).play(); }catch(e){ shadowSpeak(st.topic.question); } } else shadowSpeak(st.topic.question);
 }
 async function freetalkMic(){
   var mic=document.getElementById('ftmic');
@@ -290,7 +290,7 @@ async function freetalkMic(){
     st.log.push('<div class="bubble you">'+esc2(j.transcript||'(못 알아들음)')+'</div>');
     st.log.push('<div class="bubble npc"><b>다이키</b> '+esc2(j.reaction||'')+'</div>');
     st.affinity=j.affinity; st.remain=j.remain;
-    shadowSpeak(j.reaction||'');
+    if(j.reactionAudio){ try{ new Audio(API+j.reactionAudio).play(); }catch(e){ shadowSpeak(j.reaction||''); } } else shadowSpeak(j.reaction||'');
     if(j.done){ st.topic=null; setTimeout(freetalkDone,1600); }
     else { st.topic=j.nextTopic; setTimeout(freetalkCard,1600); }
   }catch(e){ document.getElementById('ftresult').textContent='오류: '+e; mic.disabled=false; mic.textContent='🎤 다시'; }
