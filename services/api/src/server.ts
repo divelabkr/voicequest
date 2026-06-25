@@ -164,6 +164,7 @@ function sweepMaps(now: number): void {
   for (const [k, v] of authFail) if (v.min < min) authFail.delete(k);
   for (const [k, v] of sessions) if (now - v.lastSeen > SESSION_TTL_MS) sessions.delete(k);
   for (const k of dailyStates.keys()) if (!accounts.has(k)) dailyStates.delete(k); // accounts 없는 orphan(탈퇴·잔여) 정리 — 무한 증가 차단
+  for (const k of freetalkStates.keys()) if (!accounts.has(k)) freetalkStates.delete(k); // 프리토크 세션 orphan 정리
 }
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
@@ -582,6 +583,7 @@ export const server = createServer(async (req, res) => {
       for (const [code, inv] of invites) { if (inv.boundUserId === body.userId) invites.set(code, revokeInvite(inv)); }
       sessions.delete(body.userId);
       dailyStates.delete(body.userId); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
+      freetalkStates.delete(body.userId); // 프리토크 세션도 purge(§9)
       dailyUsage.delete(body.userId);
       accounts.delete(body.userId);
       try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: body.userId }).purge?.(body.userId); } catch (e) { console.error("[purge]", String(e)); }
@@ -623,6 +625,7 @@ export const server = createServer(async (req, res) => {
       }
       sessions.delete(sid);
       dailyStates.delete(sid); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
+      freetalkStates.delete(sid); // 프리토크 세션도 purge(§9)
       dailyUsage.delete(sid);
       accounts.delete(sid);
       // 잊혀질 권리(§9) — 영속 events 파일도 삭제(미연결이면 noop, 연결 시 자동 적용)
