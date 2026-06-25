@@ -3,14 +3,15 @@
   "lines": [
     {
       "text": "いらっしゃいませ、どちらまでですか？",
-      "audio": "audio/line_0.m4a",
+      "audio": "audio/94c00bee.m4a",
       "furigana": "いらっしゃいませ、どちらまでですか？",
       "words": [],
-      "bytes": 15743
+      "bytes": 15743,
+      "hash": "94c00bee"
     },
     {
       "text": "はい、渋谷まで一枚でございます。こちら切符です。",
-      "audio": "audio/line_1.m4a",
+      "audio": "audio/a09136b3.m4a",
       "furigana": "はい、渋谷(しぶや)まで一(いち)枚(まい)でございます。こちら切符(きっぷ)です。",
       "words": [
         {
@@ -22,39 +23,44 @@
           "gloss": "표"
         }
       ],
-      "bytes": 21985
+      "bytes": 21985,
+      "hash": "a09136b3"
     },
     {
       "text": "お客様、申し訳ございません。",
-      "audio": "audio/line_2.m4a",
+      "audio": "audio/fccda7e2.m4a",
       "furigana": "お客様(きゃくさま)、申(もう)し訳(わけ)ございません。",
       "words": [],
-      "bytes": 17979
+      "bytes": 17979,
+      "hash": "fccda7e2"
     },
     {
       "text": "ただいま人身事故の影響で、山手線が約15分遅れております。振替輸送もご利用いただけます。",
-      "audio": "audio/line_3.m4a",
+      "audio": "audio/af30c0f1.m4a",
       "furigana": "ただいま人身(じんしん)事故(じこ)の影響(えいきょう)で、山手(やまて)線(せん)が約(やく)15分(ふん)遅(おく)れております。振替(ふりかえ)輸送(ゆそう)もご利用(りよう)いただけます。",
       "words": [],
-      "bytes": 39384
+      "bytes": 39384,
+      "hash": "af30c0f1"
     },
     {
       "text": "振替輸送でしたら、向かいの中央線をご利用ください。",
-      "audio": "audio/line_4.m4a",
+      "audio": "audio/b81b7c96.m4a",
       "furigana": "振替(ふりかえ)輸送(ゆそう)でしたら、向(む)かいの中央(ちゅうおう)線(せん)をご利用(りよう)ください。",
       "words": [],
-      "bytes": 22774
+      "bytes": 22774,
+      "hash": "b81b7c96"
     },
     {
       "text": "あ、中央線なら僕も行きますよ。ご一緒にどうぞ。",
-      "audio": "audio/line_5.m4a",
+      "audio": "audio/973130f5.m4a",
       "furigana": "あ、中央(ちゅうおう)線(せん)なら僕(ぼく)も行(い)きますよ。ご一緒(いっしょ)にどうぞ。",
       "words": [],
-      "bytes": 23059
+      "bytes": 23059,
+      "hash": "973130f5"
     },
     {
       "text": "まもなく渋谷に到着いたします。お忘れ物のないように。",
-      "audio": "audio/line_6.m4a",
+      "audio": "audio/880c835b.m4a",
       "furigana": "まもなく渋谷(しぶや)に到着(とうちゃく)いたします。お忘(わす)れ物(もの)のないように。",
       "words": [
         {
@@ -62,35 +68,102 @@
           "gloss": "시부야"
         }
       ],
-      "bytes": 24010
+      "bytes": 24010,
+      "hash": "880c835b"
     },
     {
       "text": "とんでもございません。良い一日を。",
-      "audio": "audio/line_7.m4a",
+      "audio": "audio/71944050.m4a",
       "furigana": "とんでもございません。良(よ)い一(いち)日(にち)を。",
       "words": [],
-      "bytes": 18073
+      "bytes": 18073,
+      "hash": "71944050"
     },
     {
       "text": "どうなさいましたか？お困りのようですね。",
-      "audio": "audio/line_8.m4a",
+      "audio": "audio/bd6c3843.m4a",
       "furigana": "どうなさいましたか？お困(こま)りのようですね。",
       "words": [],
-      "bytes": 17705
+      "bytes": 17705,
+      "hash": "bd6c3843"
     },
     {
       "text": "おっ、いいね！",
-      "audio": "audio/line_9.m4a",
+      "audio": "audio/8213b128.m4a",
       "furigana": "おっ、いいね！",
       "words": [],
-      "bytes": 11240
+      "bytes": 11240,
+      "hash": "8213b128"
     },
     {
       "text": "はいよ、了解！",
-      "audio": "audio/line_10.m4a",
+      "audio": "audio/b924f4aa.m4a",
       "furigana": "はいよ、了解(りょうかい)！",
       "words": [],
-      "bytes": 13253
+      "bytes": 13253,
+      "hash": "b924f4aa"
+    },
+    {
+      "text": "うん、なるほどね",
+      "audio": "audio/8ee75c64.m4a",
+      "furigana": "うん、なるほどね",
+      "words": [],
+      "bytes": 14019,
+      "hash": "8ee75c64"
+    },
+    {
+      "text": "また来てね！またいつでもおいで",
+      "audio": "audio/5e54dc9d.m4a",
+      "furigana": "また来(き)てね！またいつでもおいで",
+      "words": [],
+      "bytes": 16719,
+      "hash": "5e54dc9d"
+    },
+    {
+      "text": "もう一度どうぞ",
+      "audio": "audio/950980bf.m4a",
+      "furigana": "もう一度(いちど)どうぞ",
+      "words": [],
+      "bytes": 11808,
+      "hash": "950980bf"
+    },
+    {
+      "text": "うーん…",
+      "audio": "audio/0917b77f.m4a",
+      "furigana": "うーん…",
+      "words": [],
+      "bytes": 11072,
+      "hash": "0917b77f"
+    },
+    {
+      "text": "えーと…",
+      "audio": "audio/621e17f6.m4a",
+      "furigana": "えーと…",
+      "words": [],
+      "bytes": 12937,
+      "hash": "621e17f6"
+    },
+    {
+      "text": "あのー…",
+      "audio": "audio/42e714b6.m4a",
+      "furigana": "あのー…",
+      "words": [],
+      "bytes": 9041,
+      "hash": "42e714b6"
+    },
+    {
+      "text": "んー…",
+      "audio": "audio/cf627ab9.m4a",
+      "furigana": "んー…",
+      "words": [],
+      "bytes": 9543,
+      "hash": "cf627ab9"
     }
+  ],
+  "aizuchi": [
+    "audio/0917b77f.m4a",
+    "audio/621e17f6.m4a",
+    "audio/42e714b6.m4a",
+    "audio/cf627ab9.m4a"
   ]
 }

@@ -2,9 +2,10 @@
 // 에피소드 인자: tsx cache-build.ts [ep_id]  (기본 ep_01). content_cache/{short}/{manifest.json, audio/}.
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { assetHash, buildManifest, EPISODE_BYTE_BUDGET } from "@voicequest/engine";
 const require = createRequire(import.meta.url);
 
 const raw = readFileSync(new URL("../.env", import.meta.url), "utf8");
@@ -70,36 +71,45 @@ async function main(): Promise<void> {
     kuromoji.builder({ dicPath }).build((e: unknown, t: unknown) => (e ? rej(e) : res(t as never))));
 
   const lines = [];
-  let total = 0;
   for (let i = 0; i < LINES.length; i++) {
     const { text, voice } = LINES[i]!;
-    const m4aRel = `audio/line_${i}.m4a`;
+    // content-hash 파일명 — 같은 (발화·화자)는 1벌만 저장(§11 dedup). 프리토크 토픽·리액션 곱셈을 흡수.
+    const hash = assetHash(text + "" + voice);
+    const m4aRel = `audio/${hash}.m4a`;
     const m4aUrl = new URL(m4aRel, outDir);
+    const legacyUrl = new URL(`audio/line_${i}.m4a`, outDir); // 인덱스 파일명 → hash 무손실 이전
     let audio = m4aRel;
     let bytes = 0;
     if (existsSync(m4aUrl)) {
-      bytes = readFileSync(m4aUrl).length; // 기존 압축본 재사용 — quota 절약(멱등)
+      bytes = readFileSync(m4aUrl).length; // dedup·멱등: 같은 hash 재사용(중복 발화 추가 0바이트)
+    } else if (existsSync(legacyUrl)) {
+      renameSync(fileURLToPath(legacyUrl), fileURLToPath(m4aUrl)); // 마이그레이션: 재TTS 0(파일명만 hash로)
+      bytes = readFileSync(m4aUrl).length;
     } else {
       let wav: Buffer;
       try { wav = await tts(text, voice); }
       catch (e) { console.log(`  ⚠ [${i}] TTS 실패 → 자막으로 진행: ${String(e).slice(0, 40)}`); continue; }
-      const wavUrl = new URL(`audio/line_${i}.wav`, outDir);
+      const wavUrl = new URL(`audio/${hash}.wav`, outDir);
       writeFileSync(wavUrl, wav);
       bytes = wav.length;
       try { execFileSync("afconvert", ["-f", "m4af", "-d", "aac", "-b", "32000", fileURLToPath(wavUrl), fileURLToPath(m4aUrl)]); bytes = readFileSync(m4aUrl).length; rmSync(fileURLToPath(wavUrl)); }
-      catch { audio = `audio/line_${i}.wav`; }
+      catch { audio = `audio/${hash}.wav`; }
     }
-    total += bytes;
     const furigana = await kuroshiro.convert(text, { mode: "okurigana", to: "hiragana" });
     const words = tokenizer.tokenize(text)
       .map((t) => { const base = t.basic_form !== "*" ? t.basic_form : t.surface_form; return GLOSS[base] ? { w: t.surface_form, gloss: GLOSS[base] } : null; })
       .filter((x): x is { w: string; gloss: string } => x !== null);
-    lines.push({ text, audio, furigana, words, bytes });
-    console.log(`  ✓ [${i}] ${text.slice(0, 16)}… (${voice}) → ${(bytes / 1024).toFixed(0)}KB · 뜻 ${words.length}`);
+    lines.push({ text, audio, furigana, words, bytes, hash });
+    console.log(`  ✓ [${i}] ${text.slice(0, 16)}… (${voice}) → ${(bytes / 1024).toFixed(0)}KB · hash ${hash}`);
   }
   // aizuchi — 추임새 audio만 따로 노출(웹이 발화 끝 즉시 연쇄 재생 → LLM 구간 흡수)
   const aizuchi = lines.filter((l) => AIZUCHI.includes(l.text)).map((l) => l.audio);
   writeFileSync(new URL("manifest.json", outDir), JSON.stringify({ episode: SHORT, lines, aizuchi }, null, 2));
-  console.log(`\n✅ ${EP_ID}: ${lines.length}개 음성 → content_cache/${SHORT}/ (${(total / 1024).toFixed(0)}KB)`);
+  // §11 dedup·예산 강제 — engine buildManifest로 고유 자산만 카운트, 8MB 초과 시 빌드 실패
+  const entries = lines.map((l) => ({ key: l.text, hash: l.hash, url: l.audio, bytes: l.bytes, format: l.audio.endsWith(".m4a") ? "m4a" : "wav", kind: "voice" as const }));
+  const mani = buildManifest(SHORT, entries);
+  const dupSaved = lines.length - mani.entries.length;
+  console.log(`\n✅ ${EP_ID}: ${lines.length}줄 → 고유 ${mani.entries.length}개(중복 ${dupSaved} dedup), ${(mani.totalBytes / 1024).toFixed(0)}KB ${mani.withinBudget ? "✓ 예산 내" : "⚠ 예산 초과 " + (EPISODE_BYTE_BUDGET / 1024 / 1024) + "MB"}`);
+  if (!mani.withinBudget) { console.error("⚠ 에피소드 예산(8MB) 초과 — dedup·압축 강화 필요"); process.exit(1); }
 }
 main().catch((e) => { console.error(String(e).slice(0, 300)); process.exit(1); });
