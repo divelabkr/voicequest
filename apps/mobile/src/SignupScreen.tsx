@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, StyleSheet, Switch, TextInput, ActivityIndicator } from "react-native";
 import { redeem } from "./api";
+import { T } from "./theme";
 
 function inviteMsg(error: string): string {
   if (error === "invite_not_found") return "유효하지 않은 초대 코드예요.";
@@ -51,22 +52,22 @@ export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: stri
           value={code}
           onChangeText={setCode}
           placeholder="VQ-XXXX-XXXX"
-          placeholderTextColor="#b4b2a9"
+          placeholderTextColor={T.hint}
           autoCapitalize="characters"
           autoCorrect={false}
         />
 
         <View style={st.row}>
-          <Switch value={overseas} onValueChange={setOverseas} />
+          <Switch value={overseas} onValueChange={setOverseas} trackColor={{ true: T.primary, false: T.line }} />
           <Text style={st.label}>음성 처리를 위한 국외 이전(STT/TTS)에 동의</Text>
         </View>
         <View style={st.row}>
-          <Switch value={data} onValueChange={setData} />
+          <Switch value={data} onValueChange={setData} trackColor={{ true: T.primary, false: T.line }} />
           <Text style={st.label}>개인정보 처리에 동의</Text>
         </View>
         {err ? <Text style={st.err}>{err}</Text> : null}
         <Pressable style={[st.btn, !ready && st.btnOff]} onPress={submit} disabled={!ready || busy}>
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.btnText}>시작하기</Text>}
+          {busy ? <ActivityIndicator color={T.accentInk} /> : <Text style={st.btnText}>시작하기</Text>}
         </Pressable>
         <Text style={st.note}>탈퇴 시 모든 대화 기록이 삭제됩니다(잊혀질 권리).</Text>
       </View>
@@ -75,17 +76,17 @@ export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: stri
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#faf7f2", padding: 24, justifyContent: "center", alignItems: "center" },
+  root: { flex: 1, backgroundColor: T.paper, padding: 24, justifyContent: "center", alignItems: "center" },
   container: { width: "100%", maxWidth: 440 },
-  title: { fontSize: 28, fontWeight: "500", color: "#2c2c2a", marginBottom: 6 },
-  sub: { fontSize: 15, color: "#5f5e5a", marginBottom: 28 },
-  fieldLabel: { fontSize: 13, color: "#5f5e5a", marginBottom: 6 },
-  input: { borderWidth: 0.5, borderColor: "#cabfa9", borderRadius: 12, padding: 14, fontSize: 17, color: "#2c2c2a", backgroundColor: "#fff", marginBottom: 24, letterSpacing: 2 },
+  title: { fontSize: 28, fontWeight: "500", color: T.ink, marginBottom: 6 },
+  sub: { fontSize: 15, color: T.muted, marginBottom: 28 },
+  fieldLabel: { fontSize: 13, color: T.muted, marginBottom: 6 },
+  input: { borderWidth: 0.5, borderColor: T.line, borderRadius: T.radiusMd, padding: 14, fontSize: 17, color: T.ink, backgroundColor: T.card, marginBottom: 24, letterSpacing: 2 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
-  label: { flex: 1, fontSize: 15, color: "#2c2c2a" },
-  err: { color: "#a32d2d", fontSize: 14, marginBottom: 8 },
-  btn: { marginTop: 16, padding: 16, borderRadius: 14, backgroundColor: "#185fa5", alignItems: "center" },
-  btnOff: { backgroundColor: "#b4b2a9" },
-  btnText: { fontSize: 16, fontWeight: "500", color: "#fff" },
-  note: { marginTop: 20, fontSize: 12, color: "#888780", textAlign: "center" },
+  label: { flex: 1, fontSize: 15, color: T.ink },
+  err: { color: T.error, fontSize: 14, marginBottom: 8 },
+  btn: { marginTop: 16, padding: 16, borderRadius: T.radiusMd, backgroundColor: T.accent, alignItems: "center" },
+  btnOff: { backgroundColor: T.line },
+  btnText: { fontSize: 16, fontWeight: "500", color: T.accentInk },
+  note: { marginTop: 20, fontSize: 12, color: T.hint, textAlign: "center" },
 });

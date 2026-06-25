@@ -1,6 +1,7 @@
-// 6역량 레이더 — react-native-svg. 색 토큰: 데이터=파랑(액션), 격자=연회색, 라벨=회색.
+// 6역량 레이더 — react-native-svg. 색 토큰(theme.ts): 데이터=primary(teal), 격자=line, 라벨=muted.
 // 위젯 미리보기(voicequest_result_screen)의 RN 포팅. 운영자 대시보드와 같은 6축 구조.
 import Svg, { Polygon, Line, Text as SvgText } from "react-native-svg";
+import { T } from "../theme";
 
 const CX = 170;
 const CY = 130;
@@ -20,19 +21,19 @@ export default function RadarChart({ values }: { values: number[] }) {
 
   return (
     <Svg viewBox="0 0 340 252" width="100%" height={200}>
-      <Polygon points={grid(1)} fill="none" stroke="#D3D1C7" strokeWidth={0.5} />
-      <Polygon points={grid(0.5)} fill="none" stroke="#D3D1C7" strokeWidth={0.5} />
+      <Polygon points={grid(1)} fill="none" stroke={T.line} strokeWidth={0.5} />
+      <Polygon points={grid(0.5)} fill="none" stroke={T.line} strokeWidth={0.5} />
       {RADAR_LABELS.map((_, i) => {
         const [x, y] = point(i, 1).split(",");
-        return <Line key={`ax${i}`} x1={CX} y1={CY} x2={Number(x)} y2={Number(y)} stroke="#D3D1C7" strokeWidth={0.5} />;
+        return <Line key={`ax${i}`} x1={CX} y1={CY} x2={Number(x)} y2={Number(y)} stroke={T.line} strokeWidth={0.5} />;
       })}
-      <Polygon points={data} fill="#185FA5" fillOpacity={0.18} stroke="#185FA5" strokeWidth={1.5} />
+      <Polygon points={data} fill={T.primary} fillOpacity={0.18} stroke={T.primary} strokeWidth={1.5} />
       {RADAR_LABELS.map((label, i) => {
         const ang = ((-90 + i * 60) * Math.PI) / 180;
         const lx = CX + Math.cos(ang) * (R + 20);
         const ly = CY + Math.sin(ang) * (R + 20) + 4;
         return (
-          <SvgText key={`lb${i}`} x={lx} y={ly} fontSize={12} fill="#5F5E5A" textAnchor="middle">
+          <SvgText key={`lb${i}`} x={lx} y={ly} fontSize={12} fill={T.muted} textAnchor="middle">
             {label}
           </SvgText>
         );

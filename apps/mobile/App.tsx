@@ -7,6 +7,7 @@ import SignupScreen from "./src/SignupScreen";
 import ResultScreen from "./src/ResultScreen";
 import AdminApp from "./src/AdminApp";
 import { reportError, checkVersion, APP_VERSION } from "./src/api";
+import { T } from "./src/theme";
 
 // 플레이버 — admin 빌드면 운영자 콘솔, 아니면 사용자 게임(app.config.js extra.flavor).
 const FLAVOR = (Constants.expoConfig?.extra as { flavor?: string } | undefined)?.flavor ?? "user";
@@ -27,10 +28,10 @@ export default function App() {
   useEffect(() => { void checkVersion().then(setGateMin); }, []); // 시작 버전 게이트(kill switch)
   if (gateMin) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32, backgroundColor: "#faf7f2" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32, backgroundColor: T.paper }}>
         <Text style={{ fontSize: 40 }}>🔄</Text>
-        <Text style={{ fontSize: 20, fontWeight: "700", marginTop: 14 }}>업데이트가 필요해요</Text>
-        <Text style={{ fontSize: 14, color: "#777", marginTop: 6, textAlign: "center" }}>최신 버전(v{gateMin})으로 업데이트해 주세요.{"\n"}현재 v{APP_VERSION}은 더 이상 지원되지 않습니다.</Text>
+        <Text style={{ fontSize: 20, fontWeight: "700", marginTop: 14, color: T.ink }}>업데이트가 필요해요</Text>
+        <Text style={{ fontSize: 14, color: T.muted, marginTop: 6, textAlign: "center" }}>최신 버전(v{gateMin})으로 업데이트해 주세요.{"\n"}현재 v{APP_VERSION}은 더 이상 지원되지 않습니다.</Text>
       </View>
     );
   }
