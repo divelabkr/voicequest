@@ -13,8 +13,10 @@ dist/
 *.log
 .DS_Store
 
-# 콘텐츠 캐시 산출물(빌드타임 생성물 — 소스 아님)
-content_cache/
+# 콘텐츠 캐시 — 음성(.m4a)·manifest는 git 포함(W1): linux 배포는 afconvert(macOS 전용)로
+# 음성 생성 불가 → 산출물을 커밋해야 cloudbuild/CI clone 배포에 음성 포함. wav 중간산출만 제외.
+# 스케일(ep30+, 수십 MB) 시 Git LFS 또는 afconvert→ffmpeg(linux 호환) 전환.
+content_cache/**/*.wav
 
 # 런타임 상태(계정·세션·이벤트 — 테스트 데이터, 재생성 가능)
 data/
