@@ -9,6 +9,7 @@ export interface GameState {
   beatIndex: number;
   affinity: number;
   turnCount: number;
+  recoveryFail: number; // recovery 연속 실패 누적(통과 시 0) — recoveryStep 단계 상승(W6: 막힐수록 더 도움)
   done: boolean;
   ending?: string;
 }
@@ -27,6 +28,7 @@ export function initState(ep: Episode): GameState {
     beatIndex: 0,
     affinity: 0,
     turnCount: 0,
+    recoveryFail: 0,
     done: false,
   };
 }
@@ -52,7 +54,7 @@ export function advance(
 
   // recovery — 같은 씬·beat 유지(틀려도 흡수)
   if (result.nextSceneId === "recovery") {
-    return { state: { ...state, affinity, turnCount }, events };
+    return { state: { ...state, affinity, turnCount, recoveryFail: state.recoveryFail + 1 }, events };
   }
 
   // 충족 — 콘텐츠가 정의한 다음 씬으로(beatIndex 리셋)
@@ -67,7 +69,7 @@ export function advance(
 
   events.push({ type: "scene_advance", from: state.currentSceneId, to: nextId, ts });
   return {
-    state: { ...state, currentSceneId: nextId, beatIndex: 0, affinity, turnCount },
+    state: { ...state, currentSceneId: nextId, beatIndex: 0, affinity, turnCount, recoveryFail: 0 },
     events,
   };
 }

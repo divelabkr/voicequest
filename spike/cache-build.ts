@@ -56,7 +56,7 @@ const NPCS = epData.npcs ?? [];
 const MAIN_VOICE = NPCS.find((n) => n.id === epData.character)?.voiceName ?? "Fenrir";
 const voiceOf = (speaker?: string): string => (speaker ? NPCS.find((n) => n.id === speaker)?.voiceName : undefined) ?? MAIN_VOICE;
 const SCENE_LINES = epData.scenes.flatMap((s) => (s.beats ?? []).filter((b) => (b.kind === "npc" || b.kind === "npc_push") && b.line).map((b) => ({ text: b.line as string, voice: voiceOf(b.speaker) })));
-const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ"].map((t) => ({ text: t, voice: MAIN_VOICE }));
+const ACK_LINES = ["おっ、いいね！", "はいよ、了解！", "うん、なるほどね", "また来てね！またいつでもおいで", "もう一度どうぞ", "ゆっくりでいいよ、もう一度"].map((t) => ({ text: t, voice: MAIN_VOICE }));
 // 음성 추임새 — 발화 끝 즉시 재생해 LLM 판정 구간을 병렬로 흡수(끊김 없는 대화감). 짧은 생각소리, 응답까지 연쇄.
 const AIZUCHI = ["うーん…", "えーと…", "あのー…", "んー…"];
 const AIZUCHI_LINES = AIZUCHI.map((t) => ({ text: t, voice: MAIN_VOICE }));

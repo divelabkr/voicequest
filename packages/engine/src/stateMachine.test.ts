@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { initState, advance } from "./stateMachine";
 import { parseEpisode } from "./episode";
+import { recoveryStep } from "./recovery";
 import type { JudgeResult } from "./types";
 
 const ep = parseEpisode({
@@ -47,6 +48,23 @@ describe("stateMachine", () => {
   it("recovery 시 제자리 유지(흡수)", () => {
     const { state } = advance(initState(ep), res({ nextSceneId: "recovery" }), ep, 0);
     expect(state.currentSceneId).toBe("s1");
+    expect(state.recoveryFail).toBe(1); // W6 — 첫 실패 누적
+  });
+
+  it("recovery 연속 시 recoveryFail 누적 → recoveryStep 단계 상승(W6: 막힐수록 도움)", () => {
+    let s = initState(ep);
+    s = advance(s, res({ nextSceneId: "recovery" }), ep, 0).state;
+    s = advance(s, res({ nextSceneId: "recovery" }), ep, 1).state;
+    expect(s.recoveryFail).toBe(2);
+    expect(recoveryStep(s.recoveryFail - 1)).toBe("hum"); // 0→hint,1→hum,2→lead
+  });
+
+  it("recovery 후 충족 시 recoveryFail 리셋(통과하면 0)", () => {
+    let s = advance(initState(ep), res({ nextSceneId: "recovery" }), ep, 0).state;
+    expect(s.recoveryFail).toBe(1);
+    s = advance(s, res({ affinityDelta: 1 }), ep, 1).state; // 충족 s1→s2
+    expect(s.recoveryFail).toBe(0);
+    expect(s.currentSceneId).toBe("s2");
   });
 
   it("마지막 씬 충족 시 클리어 + 호감도 엔딩 분기", () => {
