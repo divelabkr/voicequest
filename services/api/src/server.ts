@@ -71,7 +71,7 @@ const CAP = STAGE_LIMITS[STAGE].capacity;
 const sessions = new Map<string, { state: GameState; usage: UsageState; events: GameEvent[]; energy: EnergyState; episodeId: string; lastSeen: number }>();
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const dailyUsage = new Map<string, UsageState>(); // userId별 데일리 일일 턴캡(STT 폭주·예산 우회 차단, /session/turn과 같은 STAGE 캡 공유 / 인메모리·재시작 리셋 허용)
-const freetalkStates = new Map<string, { used: string[]; affinity: number; turns: number }>(); // 프리토크 세션 — 쓴 토픽·호감도·턴수(인메모리, 재시작 리셋)
+const freetalkStates = new Map<string, { used: string[]; affinity: number; turns: number; dayStamp: string }>(); // 프리토크 세션 — 토픽·호감도(누적)·턴수(dayStamp 일자 리셋). saveState 영속(W2: 재시작 우회·호감도 증발 차단)
 const FREETALK_FREE_TURNS = 10; // 무료 프리토크 일일 턴(캐시카우 BM: 무료 8~10턴 + 소진 시 강등)
 const accounts = new Map<string, Account>();
 const invites = new Map<string, InviteCode>();
@@ -101,17 +101,18 @@ function saveState(): void {
     saveTimer = null;
     try {
       mkdirSync(DATA_DIR, { recursive: true });
-      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates] }), (err) => {
+      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates] }), (err) => {
         if (err) console.error("[persist] saveState 실패:", err.message); // 실패를 더는 삼키지 않음
       });
     } catch (e) { console.error("[persist] saveState 실패:", String(e)); }
   }, 200);
 }
 try {
-  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][] };
+  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][]; freetalk?: [string, { used: string[]; affinity: number; turns: number; dayStamp: string }][] };
   for (const [k, v] of s.accounts) accounts.set(k, v);
   for (const [k, v] of s.invites) invites.set(k, v);
   for (const [k, v] of s.daily ?? []) dailyStates.set(k, v);
+  for (const [k, v] of s.freetalk ?? []) freetalkStates.set(k, v);
 } catch { /* 첫 실행: 상태 파일 없음 */ }
 
 // [M5] 일일 턴캡 리셋 기준 = KST(UTC+9) 자정 — 유저 체감 "오늘"과 일치
@@ -324,12 +325,12 @@ export const server = createServer(async (req, res) => {
       if (!canSpendTurn(sUsage, STAGE, today())) { res.statusCode = 429; res.end(JSON.stringify({ error: "daily_turn_cap", cap: STAGE_LIMITS[STAGE].dailyTurnCap })); return; }
       const audio = await readBodyBuf(req, res); if (audio === null) return; // 413 처리됨
       let transcript = "";
-      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → 미매칭→recovery */ }
+      let conf = 0; try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; const tr = await deps.stt.transcribe(ab, "ja"); transcript = tr.text; conf = tr.confidence; } catch { /* STT 실패 → 미매칭→recovery */ }
       dailyUsage.set(sid, recordTurn(sUsage, today()));
       costMeter = rollMonth(costMeter, monthKST());
       costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // STT 1 + judge(정답이면 fastMatch=LLM 0)
       // 제시 표현이 곧 정답 → cardToScene → judge: 정확매칭=fastMatch 즉시, 변형=LLM, 빗나감=recovery
-      const jr = await judge({ transcript, sttConfidence: 1, scene: cardToScene(makeCard(exp, exp)), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
+      const jr = await judge({ transcript, sttConfidence: conf, scene: cardToScene(makeCard(exp, exp)), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
       const ds = dailyStates.get(sid) ?? { cards: [], streak: 0, lastDoneDay: 0 };
       const idx = ds.cards.findIndex((c) => c.expression === exp);
       if (idx >= 0) ds.cards[idx] = reviewCard(ds.cards[idx]!, jr.grade, Date.now());
@@ -343,10 +344,11 @@ export const server = createServer(async (req, res) => {
     if (req.method === "GET" && req.url?.startsWith("/freetalk?")) {
       const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
       if (!accounts.has(sid)) { res.end(JSON.stringify({ topic: null })); return; } // 미인증 가드(누수·DoS)
-      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
+      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0, dayStamp: today() };
+      if (st.dayStamp !== today()) { st.turns = 0; st.dayStamp = today(); } // 일자 리셋 — turns만 0(호감도·토픽 누적 유지, W2)
       const topic = pickTopic(DAIKI_TOPICS, st.used);
       const qa = topic ? MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(topic.question)) : undefined;
-      res.end(JSON.stringify({ topic: topic ? { id: topic.id, question: topic.question, audioUrl: qa && qa.audio.startsWith("/") ? qa.audio : "" } : null, affinity: st.affinity, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
+      res.end(JSON.stringify({ topic: topic ? { id: topic.id, question: topic.question, audioUrl: qa && qa.audio.startsWith("/") ? qa.audio : "" } : null, affinity: st.affinity, remain: Math.max(0, Math.min(FREETALK_FREE_TURNS - st.turns, STAGE_LIMITS[STAGE].dailyTurnCap - (dailyUsage.get(sid)?.turnsToday ?? 0))) }));
       return;
     }
     if (req.method === "POST" && req.url?.startsWith("/freetalk/turn")) {
@@ -360,23 +362,25 @@ export const server = createServer(async (req, res) => {
       if (!topic) { res.statusCode = 400; res.end(JSON.stringify({ error: "unknown_topic" })); return; }
       const audio = await readBodyBuf(req, res); if (audio === null) return;
       let transcript = "";
-      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → recovery 흡수 */ }
+      let conf = 0; try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; const tr = await deps.stt.transcribe(ab, "ja"); transcript = tr.text; conf = tr.confidence; } catch { /* STT 실패 → recovery 흡수 */ }
       dailyUsage.set(sid, recordTurn(fUsage, today()));
       costMeter = rollMonth(costMeter, monthKST());
       costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // 프리토크는 매턴 judge(OPIc rubric) — 임베딩 게이트는 후속 최적화
-      const jr = await judge({ transcript, sttConfidence: 1, scene: topicToScene(topic), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
+      const jr = await judge({ transcript, sttConfidence: conf, scene: topicToScene(topic), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
       const harmful = jr.category === "inappropriate" || jr.category === "harmful"; // 미성년·안전 — 부적절/위험 발화 흡수(§5 판단 않고 통제)
-      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0 };
+      const uncertain = jr.category === undefined && (jr.grade === "S" || jr.grade === "A" || jr.grade === "B"); // W4 fail-safe — category 누락+통과는 파싱 불안정, 긍정 리액션 보류(과차단 방지: grade 통과시만)
+      const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0, dayStamp: today() };
+      if (st.dayStamp !== today()) { st.turns = 0; st.dayStamp = today(); } // 일자 리셋 — turns만 0(호감도·토픽 누적 유지, W2)
       if (!st.used.includes(topicId)) st.used.push(topicId);
       st.affinity += harmful ? -1 : jr.affinityDelta; // 부적절 시 호감도 냉각
       st.turns += 1;
       freetalkStates.set(sid, st);
-      const ok = !harmful && (jr.grade === "S" || jr.grade === "A" || jr.grade === "B");
-      const reaction = harmful ? "うーん、その話はやめておこうか。別のことを話そう。" : jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
+      const ok = !harmful && !uncertain && (jr.grade === "S" || jr.grade === "A" || jr.grade === "B");
+      const reaction = harmful ? "うーん、その話はやめておこうか。別のことを話そう。" : uncertain ? "うーん、そっか。" : jr.nextSceneId === "recovery" ? "ごめん、もう一度言ってくれる？" : jr.grade === "B" ? "なるほどね。" : ok ? "へえ、いいね！もっと聞かせて。" : "うーん、そっか。";
       const next = pickTopic(DAIKI_TOPICS, st.used);
       const done = st.turns >= FREETALK_FREE_TURNS;
       const ra = MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(reaction)); const na = next ? MANIFESTS.get(DEFAULT_EP)?.byNorm.get(normText(next.question)) : undefined;
-      res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, reactionAudio: ra && ra.audio.startsWith("/") ? ra.audio : "", affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question, audioUrl: na && na.audio.startsWith("/") ? na.audio : "" }, done, remain: Math.max(0, FREETALK_FREE_TURNS - st.turns) }));
+      res.end(JSON.stringify({ grade: jr.grade, transcript, reaction, reactionAudio: ra && ra.audio.startsWith("/") ? ra.audio : "", affinity: st.affinity, nextTopic: done || !next ? null : { id: next.id, question: next.question, audioUrl: na && na.audio.startsWith("/") ? na.audio : "" }, done, remain: Math.max(0, Math.min(FREETALK_FREE_TURNS - st.turns, STAGE_LIMITS[STAGE].dailyTurnCap - (dailyUsage.get(sid)?.turnsToday ?? 0))) }));
       return;
     }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──
