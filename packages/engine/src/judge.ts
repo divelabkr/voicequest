@@ -34,7 +34,7 @@ export async function judge(input: JudgeInput, llm: LlmPort): Promise<JudgeResul
 
   // 3) 미충족(골격 매칭 0 + C)이면 recovery로 흡수 — 틀려도 분기(절대규칙 #5)
   if (result.matched.length === 0 && result.grade === "C") {
-    return { ...result, nextSceneId: "recovery" };
+    return { ...result, nextSceneId: "recovery", affinityDelta: 0 }; // recovery 흡수 시 호감도 보호 — 막힘+감점 이중벌점 제거(밸런스①)
   }
 
   return result;
