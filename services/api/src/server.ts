@@ -5,8 +5,8 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate } from "@voicequest/engine";
-import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes } from "@voicequest/engine";
+import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, SceneLevel } from "@voicequest/engine";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runTurn } from "./session";
 import { makeGenPort, genScene } from "./scene-gen";
@@ -30,7 +30,7 @@ const DAILY_POOL: DailyCard[] = [];
   const seen = new Set<string>();
   for (const epx of EPISODES.values()) for (const sc of epx.scenes) {
     const expr = sc.allowedExpressions[0]; // 씬당 대표 1개 — 의미 다양성
-    if (expr && !seen.has(expr)) { seen.add(expr); DAILY_POOL.push(makeCard(expr, sc.intent, `${epx.id}/${sc.id}`, DAILY_YOMI[expr])); }
+    if (expr && !seen.has(expr)) { seen.add(expr); DAILY_POOL.push(makeCard(expr, sc.intent, `${epx.id}/${sc.id}`, DAILY_YOMI[expr], sc.level)); }
   }
 }
 // 데일리 발화 채점 — 단일 표현 매칭(judge 골격과 별개). 정확=S·포함=A·문자겹침=B·그외=C.
@@ -288,6 +288,46 @@ export const server = createServer(async (req, res) => {
       dailyStates.set(sid, ds);
       saveState();
       res.end(JSON.stringify({ grade, transcript, expected: exp, streak: ds.streak }));
+      return;
+    }
+    // 따라하기(섀도잉) — 파라미터(레벨·테마)로 카드 선택 → 제시 단어가 달라진다. 엔드게임 1순위(콘텐츠 0 추가).
+    if (req.method === "GET" && req.url?.startsWith("/shadow?")) {
+      const q = new URL(req.url, "http://x").searchParams;
+      const level = (q.get("level") || undefined) as SceneLevel | undefined;
+      const theme = q.get("theme") || undefined;
+      const count = Math.min(12, Math.max(1, Number(q.get("count")) || 5));
+      const sid = q.get("sid") ?? "";
+      // 개인 SRS 박스(dailyStates) 우선 + 미보유분은 전역 풀에서 보충 → 복습 due가 앞으로
+      const personal = dailyStates.get(sid)?.cards ?? [];
+      const have = new Set(personal.map((c) => c.expression));
+      const pool = [...personal, ...DAILY_POOL.filter((c) => !have.has(c.expression))];
+      const cards = pickShadowCards(pool, { level, theme, mode: "listen", count }, Date.now());
+      res.end(JSON.stringify({ cards, levels: shadowLevels(DAILY_POOL), themes: shadowThemes(DAILY_POOL) }));
+      return;
+    }
+    // 따라하기 발화 — audio → STT → judge(제시=정답 pseudo-scene, fastMatch 우선) → SRS 갱신. /daily/turn과 동일 게이트.
+    if (req.method === "POST" && req.url?.startsWith("/shadow/turn")) {
+      const u = new URL(req.url, "http://x");
+      const sid = u.searchParams.get("sid") ?? "", exp = u.searchParams.get("exp") ?? "";
+      if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
+      if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
+      const sUsage = dailyUsage.get(sid) ?? { turnsToday: 0, dayStamp: today() };
+      if (!canSpendTurn(sUsage, STAGE, today())) { res.statusCode = 429; res.end(JSON.stringify({ error: "daily_turn_cap", cap: STAGE_LIMITS[STAGE].dailyTurnCap })); return; }
+      const audio = await readBodyBuf(req, res); if (audio === null) return; // 413 처리됨
+      let transcript = "";
+      try { const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer; transcript = (await deps.stt.transcribe(ab, "ja")).text; } catch { /* STT 실패 → 미매칭→recovery */ }
+      dailyUsage.set(sid, recordTurn(sUsage, today()));
+      costMeter = rollMonth(costMeter, monthKST());
+      costMeter = recordCall(recordCall(costMeter, "stt"), "judge"); // STT 1 + judge(정답이면 fastMatch=LLM 0)
+      // 제시 표현이 곧 정답 → cardToScene → judge: 정확매칭=fastMatch 즉시, 변형=LLM, 빗나감=recovery
+      const jr = await judge({ transcript, sttConfidence: 1, scene: cardToScene(makeCard(exp, exp)), modifier: {}, strictness: "lenient", affinity: 0 }, deps.llm);
+      const ds = dailyStates.get(sid) ?? { cards: [], streak: 0, lastDoneDay: 0 };
+      const idx = ds.cards.findIndex((c) => c.expression === exp);
+      if (idx >= 0) ds.cards[idx] = reviewCard(ds.cards[idx]!, jr.grade, Date.now());
+      else ds.cards.push(reviewCard(makeCard(exp, exp), jr.grade, Date.now())); // 첫 복습 카드 편입
+      dailyStates.set(sid, ds);
+      saveState();
+      res.end(JSON.stringify({ grade: jr.grade, transcript, matched: jr.matched, expected: exp }));
       return;
     }
     // ── [C2] 캐시 음성 정적 서빙 — content_cache 밖 접근 차단(traversal 방지) ──
