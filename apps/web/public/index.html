@@ -323,7 +323,10 @@ async function postTurn(blob){
   return r.json();
 }
 async function advanceNpc(){
-  for(let i=0;i<6;i++){ const res=await postTurn(null); if(res.awaitsUser||res.done){ document.getElementById('aff').textContent='♥ '+res.affinity; if(res.done) setTimeout(resultView,1400); break; } addBubble(res); }
+  const res=await postTurn(null);
+  (res.queue||[]).forEach(addBubble); // 배치 — server가 user beat까지 NPC 대사를 모아 보냄(1요청, perf #2)
+  document.getElementById('aff').textContent='♥ '+(res.affinity!=null?res.affinity:0);
+  if(res.done) setTimeout(resultView,1400);
 }
 async function enter(){
   document.getElementById('enter').remove();

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, SceneLevel } from "@voicequest/engine";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { runTurn } from "./session";
+import { runTurn, type TurnResult } from "./session";
 import { makeGenPort, genScene } from "./scene-gen";
 import { bootstrap, loadEnv } from "./bootstrap";
 import { makeEventStore } from "@voicequest/store-firestore";
@@ -633,7 +633,18 @@ export const server = createServer(async (req, res) => {
       // OPIc 적응형 난이도(④) — 최근 등급으로 strictness 동적 조정
       const recentGrades = sess.events.filter((e): e is Extract<GameEvent, { type: "turn_spoken" }> => e.type === "turn_spoken").map((e) => e.grade).slice(-5);
       const _t0 = Date.now();
-      const { result, state, metrics } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
+      let { result, state, metrics } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, sess.state, ab, Date.now(), recentGrades);
+      // advanceNpc 배치 — audio 없고 NPC 능동이면 user beat까지 모아 queue로(턴당 1+k → 1 요청, perf #2)
+      const npcQueue: unknown[] = [];
+      if (ab.byteLength === 0 && !result.awaitsUser && !result.done) {
+        const enrichR = (r: TurnResult) => { const c = MANIFESTS.get(sess.episodeId)?.byNorm.get(normText(r.npcLine)); return c ? { ...r, furigana: c.furigana, words: c.words, audioUrl: c.audio.startsWith("/") ? c.audio : `/cache/${shortOf(sess.episodeId)}/${c.audio}` } : r; };
+        npcQueue.push(enrichR(result));
+        let guard = 0;
+        while (!result.awaitsUser && !result.done && ++guard < 12) {
+          ({ result, state, metrics } = await runTurn({ ...deps, store: sessStore, episode: EPISODES.get(sess.episodeId) ?? ep }, state, ab, Date.now(), recentGrades));
+          if (!result.awaitsUser && !result.done) npcQueue.push(enrichR(result));
+        }
+      }
       const turnMs = Date.now() - _t0;
       if (result.grade !== "-" || metrics?.error) {
         // 품질 SSOT 기록 + 단계별 로그(stt/judge 분리 — 어디서 느린지 보임)
@@ -655,7 +666,7 @@ export const server = createServer(async (req, res) => {
       const enriched = cl ? { ...result, furigana: cl.furigana, words: cl.words, audioUrl: cl.audio.startsWith("/") ? cl.audio : `/cache/${shortOf(sess.episodeId)}/${cl.audio}` } : result;
       const sessEp2 = EPISODES.get(sess.episodeId) ?? ep;
       const sceneNo = sessEp2.scenes.findIndex((s) => s.id === state.currentSceneId) + 1;
-      res.end(JSON.stringify({ ...enriched, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length }, timing: { ms: turnMs, fast: result.reason === "fast_exact_match" } }));
+      res.end(JSON.stringify({ ...enriched, queue: npcQueue, progress: { scene: sceneNo || 1, total: sessEp2.scenes.length }, timing: { ms: turnMs, fast: result.reason === "fast_exact_match" } }));
       return;
     }
     // 클라 에러 자동 수집(public·best-effort) — rate limit으로 폭주 방어. 복구 아님, 기록만.

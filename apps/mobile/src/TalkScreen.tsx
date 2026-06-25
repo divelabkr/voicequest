@@ -28,11 +28,10 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   const advanceNpc = useCallback(async () => {
     setBusy(true);
     try {
-      for (let i = 0; i < 6; i++) {
-        const res = await postTurn(userId, null);
-        if (res.awaitsUser || res.done) { setAffinity(res.affinity); if (res.done) onDone?.(); break; }
-        apply(res);
-      }
+      const res = await postTurn(userId, null);
+      (res.queue || []).forEach(apply); // 배치 — 1요청으로 user beat까지 NPC 대사 일괄(perf #2)
+      setAffinity(res.affinity);
+      if (res.done) onDone?.();
     } catch (e) {
       setLines((l) => [...l, { who: "npc", text: `(오류) ${String(e)}` }]);
     }

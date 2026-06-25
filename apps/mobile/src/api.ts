@@ -10,6 +10,7 @@ export interface TurnResult {
   awaitsUser: boolean;
   furigana?: string; // 후리가나(kuroshiro okurigana)
   words?: { w: string; gloss: string }[]; // 단어뜻(kuromoji+사전)
+  queue?: TurnResult[]; // 배치 — server가 user beat까지 모은 NPC 대사 일괄(perf #2)
 }
 
 // 웹=호스트 localhost. 네이티브(에뮬·실기기)=localhost + `adb reverse tcp:8787 tcp:8787`로 PC 서버 연결.
