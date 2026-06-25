@@ -420,7 +420,7 @@ async function onMic(){
   catch(e){ aiStop=true; clearTimeout(thinkT); if(think&&think.parentNode)think.remove(); log.appendChild(el('<div class="bubble npc">(오류) '+esc2(e)+'</div>')); }
   finally{ busy=false; }
 }
-function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); } // 레드팀: 따옴표 이스케이프(UGC XSS·onclick 보간 대비)
 
 checkVersion().then(function(ok){ if(!ok) return; if(userId){ selectView(); } else { signupView(); } });
 </script>

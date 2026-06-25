@@ -2,7 +2,7 @@
 // 인메모리 세션 + access 게이트(알파 25명·일일 턴캡). accounts/invites는 파일 영속(data/vq-state.json).
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync, readdirSync, writeFile, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFile, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes, topicToScene, pickTopic, DAIKI_TOPICS } from "@voicequest/engine";
@@ -116,6 +116,12 @@ function saveState(): void {
     } catch (e) { console.error("[persist] saveState 실패:", String(e)); }
   }, 200);
 }
+// 레드팀 H-3: 디바운스 윈도우 손실 방지 — 종료 시그널에 동기 flush(재시작 직전 turn 영속 보장).
+function flushStateSync(): void {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates] })); } catch (e) { console.error("[persist] flush 실패:", String(e)); }
+}
+for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, () => { flushStateSync(); process.exit(0); });
 try {
   const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][]; freetalk?: [string, { used: string[]; affinity: number; turns: number; dayStamp: string }][] };
   for (const [k, v] of s.accounts) accounts.set(k, v);
@@ -181,8 +187,8 @@ const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.ur
 
 /** 운영자 전용 초대 코드 — crypto 랜덤. 형식 VQ-XXXX-XXXX. */
 function genInviteCode(): string {
-  const raw = randomBytes(4).toString("hex").toUpperCase();
-  return `VQ-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+  const raw = randomBytes(8).toString("hex").toUpperCase(); // 64비트(레드팀: 32비트 brute-force 차단)
+  return `VQ-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}`;
 }
 function isAdmin(req: IncomingMessage): boolean {
   if (ADMIN_TOKEN === "") return false; // 토큰 미설정이면 항상 false
@@ -381,7 +387,7 @@ export const server = createServer(async (req, res) => {
       const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0, dayStamp: today() };
       if (st.dayStamp !== today()) { st.turns = 0; st.dayStamp = today(); } // 일자 리셋 — turns만 0(호감도·토픽 누적 유지, W2)
       if (!st.used.includes(topicId)) st.used.push(topicId);
-      st.affinity += harmful ? -1 : jr.affinityDelta; // 부적절 시 호감도 냉각
+      st.affinity = Math.max(-10, Math.min(20, st.affinity + (harmful ? -1 : jr.affinityDelta))); // 냉각 + clamp(-10~20, 레드팀 H-2: 무한 누적/음수 폭주 차단)
       st.turns += 1;
       freetalkStates.set(sid, st);
       saveState(); // W2 — 갱신을 디스크에 영속(디바운스). turn마다 set만 하면 재시작 시 turns·호감도 소실
@@ -554,6 +560,7 @@ export const server = createServer(async (req, res) => {
     // ── 에피소드 완주 결과 — readModel(6스탯·호감도·시험역량) 노출(③ Result 화면) ──
     if (req.url?.startsWith("/session/result")) {
       const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      if (!accounts.has(sid)) { res.statusCode = 403; res.end(JSON.stringify({ error: "forbidden" })); return; } // 레드팀 IDOR: 미가입 sid 차단
       const sess = sessions.get(sid);
       if (!sess) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_session" })); return; }
       res.end(JSON.stringify(buildReadModel(sess.events)));
@@ -561,6 +568,7 @@ export const server = createServer(async (req, res) => {
     }
     if (req.url?.startsWith("/session/signals")) {
       const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "anon";
+      if (!accounts.has(sid)) { res.statusCode = 403; res.end(JSON.stringify({ error: "forbidden" })); return; } // 레드팀 IDOR
       const ev = sessions.get(sid)?.events ?? [];
       res.end(JSON.stringify({ timeToFirstWin: timeToFirstWin(ev), dropPoint: dropPoint(ev), churnRisk: churnRisk(ev) }));
       return;

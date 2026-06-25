@@ -16,7 +16,7 @@ const rel = (p: string): string => fileURLToPath(new URL(p, root));
 // ── engine_tests: 파일 개수가 아니라 실제 vitest 통과 ──
 let testsPass = false, testEvidence = "";
 try {
-  const out = execSync("pnpm --filter @voicequest/engine test 2>&1", { cwd: rel("."), encoding: "utf8" });
+  const out = execSync("pnpm --filter @voicequest/engine test 2>&1", { cwd: rel("."), encoding: "utf8", timeout: 180000 }); // 레드팀 M-4: 3분 타임아웃(행 방지)
   const m = out.match(/Tests\s+(\d+)\s+passed/);
   testsPass = true; testEvidence = m ? `vitest ${m[1]}개 실제 통과` : "vitest 통과(exit 0)";
 } catch { testEvidence = "⚠ vitest 실패/미통과 — 출시 차단"; }

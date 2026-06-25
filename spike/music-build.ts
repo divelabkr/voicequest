@@ -23,7 +23,7 @@ const sources = [
   ...(accent ? [{ hash: accent, role: "accent" as const }] : []),
 ];
 
-const music = makeCollageMusic({ audioDir, outDir, tmpDir: "/tmp/music" });
+const music = makeCollageMusic({ audioDir, outDir, tmpDir: `/tmp/vq-music-${process.pid}` }); // 레드팀 L-3: PID 격리(동시 빌드 충돌 방지)
 const asset = await music.gen({ prompt: "따뜻한 작별 엔딩 테마", durationSec: 12, loop: false, kind: "ending", sources });
 console.log(`✅ ${SHORT} 엔딩 테마: ${asset.url}`);
 console.log(`   ${Math.round(asset.bytes / 1024)}KB · ${asset.format} · synthId ${asset.synthId} · 소스 ${sources.length}개(pad ${pad ? 1 : 0}·rhythm ${rhythms.length}·accent ${accent ? 1 : 0})`);

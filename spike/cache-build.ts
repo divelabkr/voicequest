@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   const padH = hashOf("また来てね"), accentH = hashOf("いいね");
   const rhythmH = ["うーん", "えーと", "あのー", "んー"].map(hashOf).filter((h): h is string => !!h);
   if (padH && rhythmH.length >= 2) {
-    const a = await makeCollageMusic({ audioDir: fileURLToPath(sharedDir), outDir: fileURLToPath(new URL("bgm/", outDir)), tmpDir: "/tmp/vq-music" })
+    const a = await makeCollageMusic({ audioDir: fileURLToPath(sharedDir), outDir: fileURLToPath(new URL("bgm/", outDir)), tmpDir: `/tmp/vq-music-${process.pid}` })
       .gen({ prompt: `${EP_ID} 엔딩 테마`, durationSec: 12, loop: false, kind: "ending",
         sources: [{ hash: padH, role: "pad" }, ...rhythmH.map((h) => ({ hash: h, role: "rhythm" as const })), ...(accentH ? [{ hash: accentH, role: "accent" as const }] : [])] });
     bgm = { ending: `/cache/${SHORT}/bgm/ending.m4a`, bytes: a.bytes };
