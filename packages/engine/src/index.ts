@@ -34,6 +34,8 @@ export type { InviteCode, InviteStatus, RedeemResult } from "./invite";
 export type { AuthPort } from "./ports/Auth";
 export { SRS_INTERVALS_DAYS, dayOf, todaysCards, reviewCard, completeToday, makeCard } from "./daily";
 export type { DailyCard, DailyState } from "./daily";
+export { pickShadowCards, cardToScene, shadowLevels, shadowThemes } from "./shadow";
+export type { ShadowMode, ShadowParams } from "./shadow";
 export { VOICE_CANDIDATES, DEFAULT_PRESETS } from "./voice";
 export type { VoicePreset } from "./voice";
 export { PILOT_GATE, evaluateGate } from "./releaseGate";

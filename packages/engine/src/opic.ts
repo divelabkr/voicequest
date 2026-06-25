@@ -28,7 +28,7 @@ function levelBias(level?: SceneLevel): number {
 
 /** 최근 등급 평균(+ 씬 레벨 가중)으로 엄격도 결정. level 미지정이면 기존 동작과 동일. */
 export function adjustStrictness(recent: Grade[], level?: SceneLevel): Strictness {
-  if (recent.length === 0) return "normal";
+  if (recent.length === 0) return "lenient"; // 첫 발화(이력 없음)는 관대 — 진입 충격 완화(밸런스②)
   const avg = recent.reduce((a, g) => a + gradeValue(g), 0) / recent.length + levelBias(level);
   if (avg >= 2.3) return "strict";
   if (avg <= 0.8) return "lenient";

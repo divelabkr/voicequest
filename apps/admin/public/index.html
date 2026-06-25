@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VoiceQuest 운영 콘솔</title>
 <style>
-:root{--paper:#faf7f2;--card:#fff;--ink:#2c2c2a;--muted:#5f5e5a;--hint:#888780;--line:#e5e0d8;--blue:#185fa5;--purple:#534ab7;--teal:#0f6e56;--amber:#854f0b;--red:#a32d2d}
+:root{
+  /* DESIGN.md 토큰 단일 출처 — 직접 하드코딩 금지, 이 변수만 참조 */
+  --primary:#0f6e56;--accent:#d85a30;
+  --paper:#faf7f2;--card:#fff;--ink:#2c2c2a;--muted:#5f5e5a;--hint:#888780;--line:#e5e0d8;
+  /* semantic (연한 배경 + 진한 텍스트 pill) */
+  --success:#27500a;--success-bg:#eaf3de;--error:#a32d2d;--error-bg:#fcebeb;--warn:#946011;--warn-bg:#f7efdc;
+  /* radius */
+  --r-md:14px;--r-lg:20px;
+  /* 기존 사용처 호환 alias — 깨짐 방지 */
+  --teal:var(--primary);--blue:var(--primary);--purple:var(--primary);--amber:var(--warn);--red:var(--error)
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.6}
 .wrap{max-width:940px;margin:0 auto;padding:20px}
@@ -18,15 +28,15 @@ h3{font-size:16px;font-weight:600;margin:0}
 nav{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
 nav button{background:none;border:none;padding:9px 14px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
 nav button.active{color:var(--ink);border-bottom-color:var(--blue);font-weight:500}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;margin-bottom:14px}
 .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .muted{color:var(--muted);font-size:14px}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
 .kpi .k{font-size:12px;color:var(--hint)}
 .kpi .v{font-size:22px;font-weight:600;margin-top:3px}
-.alert{background:#faece7;border:1px solid #f0997b;color:#993c1d;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.alert{background:var(--warn-bg);border:1px solid #e7c98f;color:var(--warn);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14px}
 .row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:none}
 .voice-row label{flex:1}
@@ -36,7 +46,8 @@ nav button.active{color:var(--ink);border-bottom-color:var(--blue);font-weight:5
 .controls label{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
 input[type=text],input[type=number],input[type=password]{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
 .btn{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px;font-family:inherit}
-.btn.blue{background:var(--blue)}
+.btn.blue{background:var(--primary)}
+.btn.accent{background:var(--accent)}
 .saved{margin-left:10px;color:var(--teal);font-size:13px}
 .bar{height:8px;background:#f1efe8;border-radius:4px;overflow:hidden}
 .bar>div{height:100%;background:var(--purple)}
@@ -104,7 +115,7 @@ input[type=range]{accent-color:var(--blue)}
     <p class="muted">운영자 토큰으로 코드를 생성해 알파 테스터에게 전달합니다.</p>
     <div class="controls">
       <label>운영자 토큰 <input type="password" id="adminToken" placeholder="ADMIN_TOKEN" size="20"></label>
-      <button class="btn blue" onclick="genCode()">코드 생성</button>
+      <button class="btn accent" onclick="genCode()">코드 생성</button>
     </div>
     <div id="codeResult" class="muted" style="margin-top:10px"></div>
   </div>
@@ -142,7 +153,7 @@ input[type=range]{accent-color:var(--blue)}
   <div class="card"><h3>결제 채널</h3>
     <div class="row"><span>App Store IAP</span><span class="plan">연동 예정</span></div>
     <div class="row"><span>Google Play 결제</span><span class="plan">연동 예정</span></div>
-    <div class="row"><span>구독 취소 = 결제주기 종료 시</span><span class="pill" style="background:#eaf3de;color:#27500a">정책 확정</span></div>
+    <div class="row"><span>구독 취소 = 결제주기 종료 시</span><span class="pill" style="background:var(--success-bg);color:var(--success)">정책 확정</span></div>
   </div>
 </section>
 
@@ -156,9 +167,9 @@ input[type=range]{accent-color:var(--blue)}
     <div id="sceneStatsBody" class="muted">집계를 누르면 전체 유저 발화에서 어느 씬이 어려운지(C율 높은 순) 봅니다 — 난이도·골격 보강 우선순위.</div>
   </div>
   <div class="card">
-    <div class="card-head"><h3>음성/이미지 캐시</h3><span class="pill" style="background:#faece7;color:#993c1d">0 / 3 빌드됨</span></div>
+    <div class="card-head"><h3>음성/이미지 캐시</h3><span class="pill" style="background:var(--warn-bg);color:var(--warn)">0 / 3 빌드됨</span></div>
     <p class="muted">"NPC는 캐시" — voice 프리셋으로 NPC 대사 음성을 사전 생성합니다.</p>
-    <button class="btn blue" id="buildBtn" onclick="buildCache()">캐시 빌드 실행</button><span id="buildResult" class="muted" style="margin-left:10px"></span>
+    <button class="btn accent" id="buildBtn" onclick="buildCache()">캐시 빌드 실행</button><span id="buildResult" class="muted" style="margin-left:10px"></span>
   </div>
   <div class="card">
     <div class="card-head"><h3>씬 생성기 — 콘텐츠 공장</h3><span class="pill" style="background:#eeedfe;color:#3c3489">맥락 → 생성 → 검수</span></div>
@@ -173,7 +184,7 @@ input[type=range]{accent-color:var(--blue)}
     <div style="margin-top:12px"><label class="muted">난이도 슬라이더</label>
       <div style="display:flex;align-items:center;gap:12px;margin-top:6px"><span class="muted" style="font-size:13px">엄격</span><input type="range" id="genStrict" min="0" max="2" step="1" value="1" style="flex:1"><span class="muted" style="font-size:13px">자유</span><span id="genStrictLbl" class="pill" style="background:#e6f1fb;color:#0c447c;min-width:54px;text-align:center">표준</span></div>
     </div>
-    <button class="btn blue" style="margin-top:12px" onclick="genSceneUI()">생성</button>
+    <button class="btn accent" style="margin-top:12px" onclick="genSceneUI()">생성</button>
     <div id="genOut" style="margin-top:14px"></div>
   </div>
 </section>
@@ -241,9 +252,9 @@ input[type=range]{accent-color:var(--blue)}
     <div class="controls"><label>일일 턴 캡 <input type="number" id="dailyCap" value="40" size="4"> 턴/인</label><button class="btn" onclick="saveLocal('security',['dailyCap'])">저장</button><span class="saved" id="saved-security"></span></div>
   </div>
   <div class="card"><h3>데이터·키 보안</h3>
-    <div class="row"><span>음성 원본 즉시 폐기</span><span class="pill" style="background:#eaf3de;color:#27500a">강제 ✓</span></div>
-    <div class="row"><span>잊혀질 권리(탈퇴 삭제)</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
-    <div class="row"><span>국외이전 동의 게이트</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
+    <div class="row"><span>음성 원본 즉시 폐기</span><span class="pill" style="background:var(--success-bg);color:var(--success)">강제 ✓</span></div>
+    <div class="row"><span>잊혀질 권리(탈퇴 삭제)</span><span class="pill" style="background:var(--success-bg);color:var(--success)">동작 ✓</span></div>
+    <div class="row"><span>국외이전 동의 게이트</span><span class="pill" style="background:var(--success-bg);color:var(--success)">동작 ✓</span></div>
     <div class="row"><span>비밀키 Secret Manager · SynthID</span><span class="plan">연동 예정</span></div>
   </div>
 </section>
@@ -258,9 +269,9 @@ input[type=range]{accent-color:var(--blue)}
     <div class="seg" id="segStage"><button data-v="alpha" class="on">alpha · 25</button><button data-v="pilot">pilot · 300</button><button data-v="ga">ga</button></div>
     <p class="muted" style="margin-top:8px">게이트: 또하고싶다 ≥4 + 음성거부감↓ → pilot 승급</p>
   </div>
-  <div class="card"><div class="card-head"><h3>파일럿 게이트 (SSOT: releaseGate)</h3><button class="btn blue" onclick="loadGate()">게이트 평가</button></div><div id="gateReport" class="muted">평가 버튼을 누르면 기술 항목을 자동 검증합니다.</div></div>
+  <div class="card"><div class="card-head"><h3>파일럿 게이트 (SSOT: releaseGate)</h3><button class="btn accent" onclick="loadGate()">게이트 평가</button></div><div id="gateReport" class="muted">평가 버튼을 누르면 기술 항목을 자동 검증합니다.</div></div>
   <div class="card"><h3>인프라</h3>
-    <div class="row"><span>STT 어댑터 · HTTP 서버 · 폴백</span><span class="pill" style="background:#eaf3de;color:#27500a">동작 ✓</span></div>
+    <div class="row"><span>STT 어댑터 · HTTP 서버 · 폴백</span><span class="pill" style="background:var(--success-bg);color:var(--success)">동작 ✓</span></div>
     <div class="row"><span>Cloud Run · Firestore</span><span class="plan">배포 예정</span></div>
     <div class="row"><span>용량 거버넌스 · 압축(§11)</span><span class="plan">빌드잡 예정</span></div>
   </div>

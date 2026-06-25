@@ -5,30 +5,39 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VoiceQuest</title>
 <style>
-:root{--paper:#faf7f2;--card:#fff;--ink:#2c2c2a;--muted:#5f5e5a;--hint:#888780;--line:#e5e0d8;--blue:#185fa5;--pink:#d4537e}
+:root{
+  --primary:#0f6e56;--primary-ink:#fff;--primary-soft:#e4f0eb;
+  --accent:#d85a30;--accent-ink:#fff;--accent-soft:#faece7;
+  --paper:#faf7f2;--card:#fff;--ink:#2c2c2a;--muted:#5f5e5a;--hint:#888780;--line:#e5e0d8;
+  --success:#27500a;--success-bg:#eaf3de;--error:#a32d2d;--error-bg:#fcebeb;--warn:#946011;--warn-bg:#f7efdc;
+  --radius-md:14px;--radius-lg:20px;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans KR','Noto Sans JP',sans-serif;font-size:15px}
 .wrap{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 .center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px}
-h1{font-size:28px;font-weight:600;margin:0 0 6px}
-.sub{color:var(--muted);margin-bottom:28px}
+h1{font-size:36px;font-weight:700;line-height:1.1;margin:0 0 6px}
+.sub{color:var(--muted);margin-bottom:28px;line-height:1.6}
 label.fld{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-input[type=text]{width:100%;border:1px solid #cabfa9;border-radius:12px;padding:14px;font-size:17px;letter-spacing:2px;margin-bottom:22px;font-family:inherit}
+input[type=text]{width:100%;background:var(--card);border:.5px solid var(--line);border-radius:var(--radius-md);padding:14px;font-size:17px;letter-spacing:2px;margin-bottom:22px;font-family:inherit;color:var(--ink)}
+input[type=text]::placeholder{color:var(--hint)}
 .crow{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.crow input{width:20px;height:20px}
-.btn{width:100%;padding:16px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:500;cursor:pointer;font-family:inherit}
-.btn:disabled{background:#b4b2a9}
-.note{text-align:center;color:var(--hint);font-size:12px;margin-top:20px}
-.err{color:#a32d2d;font-size:14px;margin-bottom:10px;min-height:18px}
-.hdr{display:flex;justify-content:space-between;align-items:center;padding:16px;background:#fff;border-bottom:1px solid var(--line)}
+.crow input{width:20px;height:20px;accent-color:var(--primary)}
+.btn{width:100%;padding:14px 20px;border:none;border-radius:var(--radius-md);background:var(--primary);color:var(--primary-ink);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn.cta{background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{background:var(--line);color:var(--hint)}
+.note{text-align:center;color:var(--hint);font-size:12px;margin-top:20px;line-height:1.6}
+.err{color:var(--error);font-size:14px;margin-bottom:10px;min-height:18px}
+.hdr{display:flex;justify-content:space-between;align-items:center;padding:16px;background:var(--card);border-bottom:.5px solid var(--line)}
 .log{flex:1;overflow-y:auto;padding:14px}
-.bubble{max-width:82%;padding:11px 13px;border-radius:13px;margin:6px 0;line-height:1.9}
-.npc{background:#fff;border:1px solid var(--line)}
-.you{background:#e6f1fb;margin-left:auto;line-height:1.4}
+.bubble{max-width:82%;padding:14px;border-radius:var(--radius-lg);margin:6px 0;line-height:1.9}
+.npc{background:var(--card);border:.5px solid var(--line)}
+.you{background:var(--primary);color:var(--primary-ink);margin-left:auto;line-height:1.4}
 ruby rt{font-size:.5em;color:var(--hint)}
-.gloss{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);line-height:1.6}
-.mic{margin:16px;padding:16px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:16px;font-weight:500;cursor:pointer;font-family:inherit}
-.mic.rec{background:#a32d2d}
+.you ruby rt{color:rgba(255,255,255,.7)}
+.gloss{margin-top:8px;padding-top:8px;border-top:.5px solid var(--line);font-size:13px;color:var(--muted);line-height:1.6}
+.mic{display:flex;align-items:center;justify-content:center;width:88px;height:88px;margin:18px auto;padding:0;border:none;border-radius:9999px;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:700;line-height:1.2;text-align:center;cursor:pointer;font-family:inherit;box-shadow:0 6px 20px rgba(44,44,42,.18)}
+.mic.rec{background:var(--error)}
 .wrap{position:relative}
 .loading{position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:20}
 .bowl{position:relative;font-size:64px;line-height:1}
@@ -36,12 +45,12 @@ ruby rt{font-size:.5em;color:var(--hint)}
 .steam.s1{left:24px}.steam.s2{left:36px;animation-delay:.7s}.steam.s3{left:48px;animation-delay:1.4s}
 @keyframes steam{0%{opacity:0;transform:translateY(6px) scaleY(.6)}45%{opacity:.8}100%{opacity:0;transform:translateY(-16px) scaleY(1.2)}}
 .wave{display:flex;gap:7px;align-items:center;height:48px}
-.wave i{display:block;width:7px;height:14px;background:var(--blue);border-radius:4px;animation:wv 1s ease-in-out infinite}
+.wave i{display:block;width:7px;height:14px;background:var(--accent);border-radius:4px;animation:wv 1s ease-in-out infinite}
 .wave i:nth-child(2){animation-delay:.12s}.wave i:nth-child(3){animation-delay:.24s}.wave i:nth-child(4){animation-delay:.36s}.wave i:nth-child(5){animation-delay:.48s}
 @keyframes wv{0%,100%{height:14px}50%{height:46px}}
 .ltext{color:var(--muted);font-size:15px}
 .lbar{width:220px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
-.lbar>div{height:100%;width:0;background:var(--blue);transition:width .2s ease}
+.lbar>div{height:100%;width:0;background:var(--accent);transition:width .2s ease}
 </style>
 </head>
 <body>
@@ -101,7 +110,7 @@ function signupView(){
     + '<div class="crow"><input type="checkbox" id="c1"><span>음성 처리를 위한 국외 이전(STT/TTS)에 동의</span></div>'
     + '<div class="crow"><input type="checkbox" id="c2"><span>개인정보 처리에 동의</span></div>'
     + '<div class="err" id="err"></div>'
-    + '<button class="btn" id="go" disabled>시작하기</button>'
+    + '<button class="btn cta" id="go" disabled>시작하기</button>'
     + '<div class="note">탈퇴 시 모든 대화 기록이 삭제됩니다(잊혀질 권리).</div>'
     + '</div>';
   const code=app.querySelector('#code'), c1=app.querySelector('#c1'), c2=app.querySelector('#c2'), go=app.querySelector('#go');
@@ -113,24 +122,39 @@ function signupView(){
     try{
       const r = await fetch(API+'/auth/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value.trim().toUpperCase(),userId:uid,consent:{overseasTransfer:true,dataProcessing:true}})});
       const j = await r.json();
-      if(j.status==='active'){ userId=uid; localStorage.setItem('vq_uid',uid); selectView(); }
+      if(j.status==='active'){ userId=uid; localStorage.setItem('vq_uid',uid); (localStorage.getItem('vq_welcomed')?selectView():welcomeView()); }
       else { app.querySelector('#err').textContent = j.error==='invite_not_found'?'유효하지 않은 코드예요':j.error==='invite_already_redeemed'?'이미 사용된 코드예요':j.error||'동의/정원을 확인하세요'; go.disabled=false; }
     }catch(e){ app.querySelector('#err').textContent='서버 연결 실패: '+e; go.disabled=false; }
   };
 }
+// ── 신규 온보딩 — 가입 직후 1회: 음성게이트·따라하기·안심 3줄 + 추천 CTA(흐름 가이드) ──
+function welcomeView(){
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="center"><h1>환영해요 👋</h1>'
+    +'<div style="text-align:left;margin:18px 0 26px;line-height:1.6">'
+    +'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px"><span style="font-size:20px">🗣</span><span>VoiceQuest는 <b>말해야</b> 열려요. 버튼을 누르고 일본어로 말하면 진행돼요.</span></div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px"><span style="font-size:20px">🔊</span><span>먼저 <b>따라하기</b>로 정답을 듣고 따라 말하며 입을 풀어요.</span></div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:20px">😊</span><span>틀려도 NPC가 분기로 받아주니 편하게 말해요.</span></div>'
+    +'</div>'
+    +'<button class="btn cta" onclick="markWelcomed();shadowSetup()">따라하기로 시작</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="markWelcomed();selectView()">자유롭게 둘러보기</button></div>';
+}
+function markWelcomed(){ try{ localStorage.setItem('vq_welcomed','1'); }catch(e){} }
+function markPlayed(){ try{ localStorage.setItem('vq_played','1'); }catch(e){} }
 
 function selectView(){
   const app=document.getElementById('app');
-  app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div onclick="dailyView()" style="cursor:pointer;border:2px solid var(--blue);border-radius:14px;padding:15px 16px;margin:0 0 18px;background:#e6f1fb"><b style="font-size:17px">🔥 오늘의 3마디</b><div class="sub" style="margin:4px 0 0;color:#0c447c">1분 발화 연습 · 매일 스트릭</div></div><div class="sub" style="margin-bottom:12px">또는 에피소드 모험</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
+  var firstTime=!localStorage.getItem('vq_played');
+  app.innerHTML='<div class="center"><h1>어디로 갈까요?</h1><div onclick="dailyView()" style="cursor:pointer;border:2px solid var(--primary);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--primary-soft)"><b style="font-size:17px">🔥 오늘의 3마디</b><div class="sub" style="margin:4px 0 0;color:var(--primary)">1분 발화 연습 · 매일 스트릭</div></div><div onclick="shadowSetup()" style="cursor:pointer;border:.5px solid var(--accent);border-radius:var(--radius-md);padding:15px 16px;margin:0 0 18px;background:var(--accent-soft)"><b style="font-size:17px">🗣 따라하기</b>'+(firstTime?'<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:9999px;padding:2px 8px;margin-left:6px">처음이면 여기부터</span>':'')+'<div class="sub" style="margin:4px 0 0;color:var(--accent)">정답을 듣고 따라 말하기 · 레벨·테마 선택</div></div><div class="sub" style="margin-bottom:12px">또는 에피소드 모험</div><div id="epCards"><div class="sub">불러오는 중…</div></div></div>';
   fetch(API+'/episodes').then(function(r){return r.json()}).then(function(j){
     window._epAizu={};
     document.getElementById('epCards').innerHTML=(j.episodes||[]).map(function(e){
       window._epAizu[e.id]=e.aizuchi||[];
-      return '<div onclick="startEp(\''+e.id+'\',\''+esc2(e.title).replace(/\x27/g,"")+'\')" style="cursor:pointer;border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin:10px 0;background:#fff"><b style="font-size:17px">'+esc2(e.title)+'</b><div class="sub" style="margin:4px 0 0">'+esc2(e.character)+' · '+e.sceneCount+'씬 · NPC '+((e.npcs||[]).length)+'명'+(e.cached?' · 🔊 음성':' · 자막')+'</div></div>';
+      return '<div onclick="startEp(\''+e.id+'\',\''+esc2(e.title).replace(/\x27/g,"")+'\')" style="cursor:pointer;border:.5px solid var(--line);border-radius:var(--radius-md);padding:15px 16px;margin:10px 0;background:var(--card)"><b style="font-size:17px">'+esc2(e.title)+'</b><div class="sub" style="margin:4px 0 0">'+esc2(e.character)+' · '+e.sceneCount+'씬 · NPC '+((e.npcs||[]).length)+'명'+(e.cached?' · 🔊 음성':' · 자막')+'</div></div>';
     }).join('')||'에피소드 없음';
   }).catch(function(){ document.getElementById('epCards').innerHTML='<div class="err">에피소드 로드 실패</div>'; });
 }
-function startEp(epId,title){ currentEp=epId; currentEpTitle=title||epId; window._aizuchi=(window._epAizu||{})[epId]||[]; talkView(); }
+function startEp(epId,title){ markPlayed(); currentEp=epId; currentEpTitle=title||epId; window._aizuchi=(window._epAizu||{})[epId]||[]; talkView(); }
 async function dailyView(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">오늘의 3마디 불러오는 중…</div></div>';
@@ -145,7 +169,7 @@ function dailyCard(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">오늘의 3마디 · '+(st.idx+1)+'/'+st.cards.length+' · 🔥 '+st.streak+'</div>'
     +'<div style="font-size:26px;margin:26px 0 4px;font-weight:600">'+esc2(c.expression)+'</div>'
-    +(showFuri?'<div style="font-size:15px;color:var(--blue);margin-bottom:6px">'+esc2(yomiHangul(c.yomi||c.expression))+'</div>':'')
+    +(showFuri?'<div style="font-size:15px;color:var(--primary);margin-bottom:6px">'+esc2(yomiHangul(c.yomi||c.expression))+'</div>':'')
     +'<div class="sub" style="margin-bottom:30px">'+esc2(c.meaning)+'</div>'
     +'<button class="mic" id="dmic">🎤 눌러서 따라 말하기</button>'
     +'<div id="dresult" style="margin-top:16px;min-height:26px"></div></div>';
@@ -163,7 +187,7 @@ async function dailyMic(){
   try{
     var r=await fetch(API+'/daily/turn?sid='+userId+'&exp='+encodeURIComponent(c.expression),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
     var j=await r.json(); var ok=j.grade==='S'||j.grade==='A'||j.grade==='B';
-    document.getElementById('dresult').innerHTML=(ok?'<span style="color:var(--blue);font-weight:600">✓ '+j.grade+'</span>':'<span style="color:#a32d2d;font-weight:600">✗ 다시</span>')+' <span class="sub">들린 말: '+esc2(j.transcript||'(못 알아들음)')+'</span>';
+    document.getElementById('dresult').innerHTML=(ok?'<span style="background:var(--success-bg);color:var(--success);font-weight:700;border-radius:9999px;padding:4px 10px">✓ '+j.grade+'</span>':'<span style="background:var(--error-bg);color:var(--error);font-weight:700;border-radius:9999px;padding:4px 10px">✗ 다시</span>')+' <span class="sub">들린 말: '+esc2(j.transcript||'(못 알아들음)')+'</span>';
     st.streak=j.streak; if(ok)st.done++;
     setTimeout(function(){ st.idx++; dailyCard(); },1700);
   }catch(e){ document.getElementById('dresult').textContent='오류: '+e; mic.disabled=false; mic.textContent='🎤 다시'; }
@@ -172,9 +196,82 @@ function dailyDone(){
   var st=window._daily; const app=document.getElementById('app');
   app.innerHTML='<div class="center" style="text-align:center"><h1>🔥 '+st.streak+'일째</h1><div class="sub" style="margin-bottom:6px">오늘의 3마디 완료</div><div style="font-size:22px;margin:10px 0">'+st.done+' / '+st.cards.length+' 정답</div><button class="btn" style="margin-top:20px" onclick="selectView()">돌아가기</button></div>';
 }
+// ── 따라하기(섀도잉) — 파라미터로 카드 선택 → 선창(브라우저 TTS) → 따라 발화 → judge 채점 → SRS 복습 ──
+async function shadowSetup(){
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="center"><div class="sub">따라하기 준비 중…</div></div>';
+  let d; try{ d=await (await fetch(API+'/shadow?sid='+userId)).json(); }catch(e){ app.innerHTML='<div class="center"><div class="err">로드 실패</div></div>'; return; }
+  window._shOpts={levels:d.levels||[], themes:d.themes||[]}; window._shParam={level:null, theme:null};
+  shadowSetupRender();
+}
+function shadowSetupRender(){
+  var o=window._shOpts, p=window._shParam; const app=document.getElementById('app');
+  function chips(arr,key){ return arr.length?arr.map(function(v){ var on=p[key]===v; return '<span onclick="shadowPick(\''+key+'\',\''+v+'\')" style="cursor:pointer;display:inline-block;border:1px solid '+(on?'var(--accent)':'var(--line)')+';background:'+(on?'var(--accent-soft)':'var(--card)')+';color:'+(on?'var(--accent)':'var(--ink)')+';border-radius:9999px;padding:6px 14px;margin:4px">'+esc2(v)+'</span>'; }).join(''):'<span class="sub">전체</span>'; }
+  app.innerHTML='<div class="center"><h1>따라하기</h1><div class="sub" style="margin-bottom:18px">정답을 듣고 따라 말하며 익혀요</div>'
+    +'<div style="text-align:left;margin-bottom:14px"><div class="sub" style="margin-bottom:6px">레벨</div>'+chips(o.levels,'level')+'</div>'
+    +'<div style="text-align:left;margin-bottom:22px"><div class="sub" style="margin-bottom:6px">테마</div>'+chips(o.themes,'theme')+'</div>'
+    +'<button class="btn cta" onclick="shadowStart()">시작하기</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="selectView()">뒤로</button></div>';
+}
+function shadowPick(key,val){ var p=window._shParam; p[key]=(p[key]===val?null:val); shadowSetupRender(); }
+async function shadowStart(){
+  markPlayed(); var p=window._shParam; const app=document.getElementById('app'); app.innerHTML='<div class="center"><div class="sub">카드 불러오는 중…</div></div>';
+  var qs='?sid='+userId+'&count=6'+(p.level?'&level='+p.level:'')+(p.theme?'&theme='+encodeURIComponent(p.theme):'');
+  let d; try{ d=await (await fetch(API+'/shadow'+qs)).json(); }catch(e){ app.innerHTML='<div class="center"><div class="err">로드 실패</div></div>'; return; }
+  window._shadow={cards:d.cards||[], idx:0, done:0};
+  if(!window._shadow.cards.length){ app.innerHTML='<div class="center"><div class="sub" style="margin-bottom:14px">조건에 맞는 카드가 없어요</div><button class="btn" onclick="shadowSetup()">다시 고르기</button></div>'; return; }
+  shadowCard();
+}
+function shadowSpeak(text){ try{ var u=new SpeechSynthesisUtterance(text); u.lang='ja-JP'; u.rate=0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+function shadowCard(){
+  var st=window._shadow;
+  if(st.idx>=st.cards.length){ shadowDone(); return; }
+  var c=st.cards[st.idx]; const app=document.getElementById('app');
+  app.innerHTML='<div class="center"><div class="sub">따라하기 · '+(st.idx+1)+'/'+st.cards.length+'</div>'
+    +'<div style="font-size:26px;margin:24px 0 4px;font-weight:600">'+esc2(c.expression)+'</div>'
+    +(showFuri?'<div style="font-size:15px;color:var(--primary);margin-bottom:6px">'+esc2(yomiHangul(c.yomi||c.expression))+'</div>':'')
+    +'<div class="sub" style="margin-bottom:14px">'+esc2(c.meaning||'')+'</div>'
+    +'<button class="btn" id="sspeak" style="max-width:150px;margin:0 auto 16px;background:var(--card);color:var(--accent);border:1px solid var(--accent)">🔊 다시 듣기</button>'
+    +'<button class="mic" id="smic">🎤 눌러서 따라 말하기</button>'
+    +'<div id="sresult" style="margin-top:16px;min-height:26px"></div></div>';
+  document.getElementById('smic').onclick=shadowMic;
+  document.getElementById('sspeak').onclick=function(){ shadowSpeak(c.expression); };
+  shadowSpeak(c.expression);
+}
+async function shadowMic(){
+  var mic=document.getElementById('smic');
+  if(!rec){
+    try{ const stream=await navigator.mediaDevices.getUserMedia({audio:true}); recChunks=[]; rec=new MediaRecorder(stream); rec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data)}; rec.start(); mic.textContent='■ 멈추고 채점'; mic.classList.add('rec'); }catch(e){ alert('마이크 권한이 필요해요'); }
+    return;
+  }
+  mic.classList.remove('rec'); mic.textContent='채점 중…'; mic.disabled=true;
+  var blob=await new Promise(function(res){ rec.onstop=function(){ rec.stream.getTracks().forEach(function(t){t.stop()}); res(new Blob(recChunks,{type:'audio/webm'})); }; rec.stop(); }); rec=null;
+  var st=window._shadow, c=st.cards[st.idx];
+  try{
+    var r=await fetch(API+'/shadow/turn?sid='+userId+'&exp='+encodeURIComponent(c.expression),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
+    var j=await r.json(); var ok=j.grade==='S'||j.grade==='A'||j.grade==='B';
+    document.getElementById('sresult').innerHTML=(ok?'<span style="background:var(--success-bg);color:var(--success);font-weight:700;border-radius:9999px;padding:4px 10px">✓ '+j.grade+'</span>':'<span style="background:var(--error-bg);color:var(--error);font-weight:700;border-radius:9999px;padding:4px 10px">✗ 다시</span>')+' <span class="sub">들린 말: '+esc2(j.transcript||'(못 알아들음)')+'</span>';
+    if(ok)st.done++;
+    setTimeout(function(){ st.idx++; shadowCard(); },1700);
+  }catch(e){ document.getElementById('sresult').textContent='오류: '+e; mic.disabled=false; mic.textContent='🎤 다시'; }
+}
+function shadowDone(){
+  var st=window._shadow; const app=document.getElementById('app');
+  app.innerHTML='<div class="center" style="text-align:center"><h1>따라하기 완료</h1><div style="font-size:22px;margin:14px 0">'+st.done+' / '+st.cards.length+' 정답</div>'
+    +'<div class="sub" style="margin-bottom:16px">방금 연습한 말, 다이키에게 직접 써볼까요?</div>'
+    +'<button class="btn cta" onclick="shadowToEpisode()">🍜 다이키 만나러 가기</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="shadowSetup()">한 번 더 따라하기</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="selectView()">돌아가기</button></div>';
+}
+// Aha→핵심 넛지 — 따라하기 직후 첫 에피소드(다이키)로 직행해 ③→④ 여정 누수 방지
+async function shadowToEpisode(){
+  try{ var j=await (await fetch(API+'/episodes')).json(); var e=(j.episodes||[])[0];
+    if(e){ window._epAizu=window._epAizu||{}; window._epAizu[e.id]=e.aizuchi||[]; startEp(e.id, e.title); return; } }catch(x){}
+  selectView();
+}
 function talkView(){
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span><span id="prog" class="sub" style="margin-right:10px"></span><button id="furiBtn" onclick="toggleFuri()" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;margin-right:10px;cursor:pointer">가나 '+(showFuri?"ON":"OFF")+'</button><span id="aff" style="color:var(--pink)">♥ 0</span></span></div>'
+  app.innerHTML = '<div class="hdr"><b>'+esc2(currentEpTitle)+'</b><span><span id="prog" class="sub" style="margin-right:10px"></span><button id="furiBtn" onclick="toggleFuri()" style="border:.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:4px 10px;font-size:12px;margin-right:10px;cursor:pointer">가나 '+(showFuri?"ON":"OFF")+'</button><span id="aff" style="color:var(--accent)">♥ 0</span></span></div>'
     + '<div class="log" id="log"><button class="btn" style="max-width:200px;margin:30px auto;display:block" id="enter">입장하기</button></div>'
     + '<button class="mic" id="mic" style="display:none">🎤 눌러서 말하기</button>';
   app.querySelector('#enter').onclick = enter;
@@ -187,19 +284,19 @@ async function resultView(){
   let rm={}; try{ rm=await (await fetch(API+'/session/result?sid='+userId)).json(); }catch(e){}
   const aff=Object.values(rm.affinity||{})[0]||0;
   const n=aff>=6?3:aff>=3?2:1;
-  const stars='★★★☆☆'.slice(3-n,6-n);
   const s6=rm.stats6||{};
   const L={pronunciation:'발음',vocabulary:'어휘',grammar:'문법',naturalness:'자연도',speed:'속도',challenge:'도전'};
-  const bars=Object.keys(L).map(function(k){var v=Math.round(s6[k]||0);return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>'+L[k]+'</span><span style="color:var(--muted)">'+v+'</span></div><div style="height:7px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,v)+'%;background:var(--blue)"></div></div></div>'}).join('');
+  const bars=Object.keys(L).map(function(k){var v=Math.round(s6[k]||0);return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>'+L[k]+'</span><span style="color:var(--muted)">'+v+'</span></div><div style="height:7px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+Math.min(100,v)+'%;background:var(--primary)"></div></div></div>'}).join('');
   const ex=rm.examReadiness||{};
   const jlpt=(ex.jlpt&&ex.jlpt.estimated)||'-';
   const opic=(ex.opic&&ex.opic.estimated)||'-';
   app.innerHTML='<div class="center" style="text-align:center"><h1>완주!</h1><div class="sub">'+esc2(currentEpTitle)+'</div>'
-    +'<div style="font-size:38px;color:var(--pink);letter-spacing:4px;margin:14px 0">'+stars+'</div>'
+    +'<div style="font-size:38px;letter-spacing:4px;margin:14px 0"><span style="color:var(--accent)">'+'★★★'.slice(0,n)+'</span><span style="color:var(--line)">'+'☆☆☆'.slice(0,3-n)+'</span></div>'
     +'<div class="sub" style="margin-bottom:18px">호감도 ♥ '+aff+'</div>'
     +'<div style="text-align:left;margin:0 0 20px">'+bars+'</div>'
-    +'<div style="display:flex;gap:10px;justify-content:center;margin-bottom:22px"><div style="background:#e6f1fb;color:#0c447c;padding:10px 18px;border-radius:12px;font-size:14px">JLPT 추정<br><b style="font-size:18px">'+jlpt+'</b></div><div style="background:#fbeaf0;color:#72243e;padding:10px 18px;border-radius:12px;font-size:14px">OPIc<br><b style="font-size:18px">'+opic+'</b></div></div>'
-    +'<button class="btn" onclick="location.reload()">다시 하기</button></div>';
+    +'<div style="display:flex;gap:10px;justify-content:center;margin-bottom:22px"><div style="background:var(--primary-soft);color:var(--primary);padding:10px 18px;border-radius:var(--radius-md);font-size:14px">JLPT 추정<br><b style="font-size:18px">'+jlpt+'</b></div><div style="background:var(--accent-soft);color:var(--accent);padding:10px 18px;border-radius:var(--radius-md);font-size:14px">OPIc<br><b style="font-size:18px">'+opic+'</b></div></div>'
+    +'<button class="btn cta" onclick="shadowSetup()">🗣 따라하기로 복습</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="location.reload()">다시 하기</button></div>';
 }
 
 function addBubble(res){
@@ -210,7 +307,7 @@ function addBubble(res){
     ? esc(res.furigana).replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>')
     : esc(res.npcLine);
   if(res.words && res.words.length){ html += '<div class="gloss">'+res.words.map(function(w){return esc(w.w)+' · '+esc(w.gloss);}).join('<br>')+'</div>'; }
-  var spk=(res.speakerName&&!res.speakerIsMain)?'<div style="font-size:12px;color:var(--pink);margin-bottom:3px;font-weight:500">'+esc(res.speakerName)+'</div>':'';
+  var spk=(res.speakerName&&!res.speakerIsMain)?'<div style="font-size:12px;color:var(--accent);margin-bottom:3px;font-weight:600">'+esc(res.speakerName)+'</div>':'';
   log.appendChild(el('<div class="bubble npc">'+spk+html+'</div>'));
   log.scrollTop=log.scrollHeight;
   var affEl=document.getElementById('aff'); var prevAff=window._prevAff||0;
@@ -226,7 +323,10 @@ async function postTurn(blob){
   return r.json();
 }
 async function advanceNpc(){
-  for(let i=0;i<6;i++){ const res=await postTurn(null); if(res.awaitsUser||res.done){ document.getElementById('aff').textContent='♥ '+res.affinity; if(res.done) setTimeout(resultView,1400); break; } addBubble(res); }
+  const res=await postTurn(null);
+  (res.queue||[]).forEach(addBubble); // 배치 — server가 user beat까지 NPC 대사를 모아 보냄(1요청, perf #2)
+  document.getElementById('aff').textContent='♥ '+(res.affinity!=null?res.affinity:0);
+  if(res.done) setTimeout(resultView,1400);
 }
 async function enter(){
   document.getElementById('enter').remove();
@@ -238,7 +338,7 @@ async function enter(){
   document.getElementById('mic').style.display='block';
   // ⑧ 첫 입장 온보딩 — 마이크 사용법 1회 안내(§5 음성 게이트가 유일 입력)
   if(!localStorage.getItem('vq_onboarded')){
-    document.getElementById('log').appendChild(el('<div class="bubble npc" style="background:#fff8e1;border-color:#f0d775">🎤 아래 버튼을 누르고 일본어로 말해보세요. 잘 안 들려도 NPC가 분기로 받아줘요.</div>'));
+    document.getElementById('log').appendChild(el('<div class="bubble npc" style="background:var(--warn-bg);border-color:var(--warn-bg);color:var(--warn)">🎤 아래 버튼을 누르고 일본어로 말해보세요. 잘 안 들려도 NPC가 분기로 받아줘요.</div>'));
     document.getElementById('log').scrollTop=document.getElementById('log').scrollHeight;
     localStorage.setItem('vq_onboarded','1');
   }

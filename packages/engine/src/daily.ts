@@ -1,6 +1,6 @@
 // 데일리 3마디 — 마이크로 발화 습관(DNA: 쉽게 외국어). 순수.
 // Duolingo 스트릭 + Speak 발화 + Anki SRS(라이트너)를 "목적 있는 한 마디"로 결합.
-import type { Grade } from "./types";
+import type { Grade, SceneLevel } from "./types";
 
 /** 라이트너 박스별 복습 간격(일) — 맞을수록 길어짐(간격 반복). */
 export const SRS_INTERVALS_DAYS = [0, 1, 2, 4, 8, 16];
@@ -11,6 +11,7 @@ export interface DailyCard {
   meaning: string; // 한국어 뜻
   yomi?: string; // 후리가나(히라가나) — 한자 한글발음 변환용
   sceneRef?: string; // 출처(에피소드/씬) — 게임과 연계
+  level?: SceneLevel; // 난이도(N5~OPIc) — 따라하기 모드 파라미터 필터
   box: number; // 0~5 라이트너 박스(높을수록 잘 암)
   dueDay: number; // 다음 복습 day
 }
@@ -49,6 +50,6 @@ export function completeToday(state: DailyState, now: number): DailyState {
 }
 
 /** 신규 카드 생성 — 에피소드 표현을 데일리 풀에 편입(게임↔데일리 연계). */
-export function makeCard(expression: string, meaning: string, sceneRef?: string, yomi?: string): DailyCard {
-  return { expression, meaning, yomi, sceneRef, box: 0, dueDay: 0 };
+export function makeCard(expression: string, meaning: string, sceneRef?: string, yomi?: string, level?: SceneLevel): DailyCard {
+  return { expression, meaning, yomi, sceneRef, level, box: 0, dueDay: 0 };
 }

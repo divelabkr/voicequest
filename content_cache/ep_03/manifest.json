@@ -3,14 +3,15 @@
   "lines": [
     {
       "text": "あ、おはよう！",
-      "audio": "audio/line_0.m4a",
+      "audio": "audio/26645be7.m4a",
       "furigana": "あ、おはよう！",
       "words": [],
-      "bytes": 11082
+      "bytes": 11082,
+      "hash": "26645be7"
     },
     {
       "text": "今日もギリギリじゃん、走ってきたの？まあ座りなよ。",
-      "audio": "audio/line_1.m4a",
+      "audio": "audio/e26898c3.m4a",
       "furigana": "今日(きょう)もギリギリじゃん、走(はし)ってきたの？まあ座(すわ)りなよ。",
       "words": [
         {
@@ -18,7 +19,33 @@
           "gloss": "앉다"
         }
       ],
-      "bytes": 25151
+      "bytes": 25151,
+      "hash": "e26898c3"
+    },
+    {
+      "text": "ねえ、昨日何してたの？",
+      "audio": "audio/acff31fd.m4a",
+      "furigana": "ねえ、昨日(きのう)何(なに)してたの？",
+      "words": [],
+      "bytes": 15080,
+      "hash": "acff31fd"
+    },
+    {
+      "text": "あ、もう昼だ。お腹すいた〜、一緒に食べようよ。",
+      "audio": "audio/ee8c530e.m4a",
+      "furigana": "あ、もう昼(ひる)だ。お腹(なか)すいた〜、一緒(いっしょ)に食(た)べようよ。",
+      "words": [],
+      "bytes": 24540,
+      "hash": "ee8c530e"
+    },
+    {
+      "text": "…なんかさ、最近どうなの？元気にしてる？",
+      "audio": "audio/c9398c43.m4a",
+      "furigana": "…なんかさ、最近(さいきん)どうなの？元気(げんき)にしてる？",
+      "words": [],
+      "bytes": 20331,
+      "hash": "c9398c43"
     }
-  ]
+  ],
+  "aizuchi": []
 }

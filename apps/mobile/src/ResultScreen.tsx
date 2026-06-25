@@ -2,6 +2,7 @@
 // 데이터는 props(서버 readModel에서 주입). 미연결 시 샘플로 렌더.
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import RadarChart from "./components/RadarChart";
+import { T } from "./theme";
 
 export default function ResultScreen({
   stats = [70, 80, 60, 85, 65, 90],
@@ -26,8 +27,8 @@ export default function ResultScreen({
       <Text style={st.kicker}>에피소드 클리어</Text>
       <Text style={st.title}>다이키 · 라멘집</Text>
       <Text style={st.stars}>
-        {"★".repeat(stars)}
-        {"☆".repeat(Math.max(0, 3 - stars))}
+        <Text style={st.starOn}>{"★".repeat(stars)}</Text>
+        <Text style={st.starOff}>{"☆".repeat(Math.max(0, 3 - stars))}</Text>
       </Text>
 
       <View style={st.card}>
@@ -64,23 +65,25 @@ export default function ResultScreen({
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#faf7f2" },
-  kicker: { fontSize: 13, color: "#888780", textAlign: "center" },
-  title: { fontSize: 20, fontWeight: "500", color: "#2c2c2a", textAlign: "center", marginTop: 2 },
-  stars: { fontSize: 22, color: "#EF9F27", textAlign: "center", marginTop: 6, letterSpacing: 3 },
-  card: { backgroundColor: "#fff", borderWidth: 0.5, borderColor: "#e5e0d8", borderRadius: 14, padding: 14, marginTop: 14 },
-  cardLabel: { fontSize: 13, fontWeight: "500", color: "#5f5e5a", marginBottom: 4 },
+  root: { flex: 1, backgroundColor: T.paper },
+  kicker: { fontSize: 13, color: T.hint, textAlign: "center" },
+  title: { fontSize: 20, fontWeight: "500", color: T.ink, textAlign: "center", marginTop: 2 },
+  stars: { fontSize: 22, textAlign: "center", marginTop: 6, letterSpacing: 3 },
+  starOn: { color: T.accent },
+  starOff: { color: T.line },
+  card: { backgroundColor: T.card, borderWidth: 0.5, borderColor: T.line, borderRadius: T.radiusMd, padding: 14, marginTop: 14 },
+  cardLabel: { fontSize: 13, fontWeight: "500", color: T.muted, marginBottom: 4 },
   affRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  affName: { fontSize: 15, color: "#2c2c2a" },
-  affNum: { fontSize: 14, color: "#993556", fontWeight: "500" },
-  gaugeBg: { height: 10, backgroundColor: "#f1efe8", borderRadius: 6, overflow: "hidden" },
-  gaugeFill: { height: "100%", backgroundColor: "#d4537e", borderRadius: 6 },
-  insight: { backgroundColor: "#fbeaf0", borderWidth: 0.5, borderColor: "#f4c0d1", borderRadius: 14, padding: 14, marginTop: 14 },
-  insightText: { fontSize: 15, color: "#72243e", lineHeight: 22 },
+  affName: { fontSize: 15, color: T.ink },
+  affNum: { fontSize: 14, color: T.accent, fontWeight: "500" },
+  gaugeBg: { height: 10, backgroundColor: T.accentSoft, borderRadius: 6, overflow: "hidden" },
+  gaugeFill: { height: "100%", backgroundColor: T.accent, borderRadius: 6 },
+  insight: { backgroundColor: T.successBg, borderWidth: 0.5, borderColor: T.line, borderRadius: T.radiusMd, padding: 14, marginTop: 14 },
+  insightText: { fontSize: 15, color: T.success, lineHeight: 22 },
   btnRow: { flexDirection: "row", gap: 8, marginTop: 18 },
-  btn: { padding: 14, borderRadius: 14, alignItems: "center" },
-  btnGhost: { flex: 1, backgroundColor: "#fff", borderWidth: 0.5, borderColor: "#cabfa9" },
-  btnGhostText: { fontSize: 15, color: "#2c2c2a" },
-  btnPrimary: { flex: 1.4, backgroundColor: "#185fa5" },
-  btnPrimaryText: { fontSize: 15, color: "#fff", fontWeight: "500" },
+  btn: { padding: 14, borderRadius: T.radiusMd, alignItems: "center" },
+  btnGhost: { flex: 1, backgroundColor: T.card, borderWidth: 0.5, borderColor: T.line },
+  btnGhostText: { fontSize: 15, color: T.ink },
+  btnPrimary: { flex: 1.4, backgroundColor: T.primary },
+  btnPrimaryText: { fontSize: 15, color: T.primaryInk, fontWeight: "500" },
 });

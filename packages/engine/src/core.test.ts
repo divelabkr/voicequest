@@ -31,7 +31,7 @@ describe("opic", () => {
     expect(adjustStrictness(["S", "S", "A"])).toBe("strict");
     expect(adjustStrictness(["C", "C", "C"])).toBe("lenient");
     expect(adjustStrictness(["A", "B"])).toBe("normal");
-    expect(adjustStrictness([])).toBe("normal");
+    expect(adjustStrictness([])).toBe("lenient"); // 밸런스② 첫 발화(이력 없음)는 관대 — 진입 충격 완화
   });
 
   it("같은 성적이라도 쉬운 레벨은 더 깐깐(strict), 어려운 레벨은 흡수(lenient)", () => {
