@@ -3,7 +3,7 @@
   "lines": [
     {
       "text": "あ、おはよう！",
-      "audio": "audio/26645be7.m4a",
+      "audio": "/cache/_shared/audio/26645be7.m4a",
       "furigana": "あ、おはよう！",
       "words": [],
       "bytes": 11082,
@@ -11,7 +11,7 @@
     },
     {
       "text": "今日もギリギリじゃん、走ってきたの？まあ座りなよ。",
-      "audio": "audio/e26898c3.m4a",
+      "audio": "/cache/_shared/audio/e26898c3.m4a",
       "furigana": "今日(きょう)もギリギリじゃん、走(はし)ってきたの？まあ座(すわ)りなよ。",
       "words": [
         {
@@ -24,7 +24,7 @@
     },
     {
       "text": "ねえ、昨日何してたの？",
-      "audio": "audio/acff31fd.m4a",
+      "audio": "/cache/_shared/audio/acff31fd.m4a",
       "furigana": "ねえ、昨日(きのう)何(なに)してたの？",
       "words": [],
       "bytes": 15080,
@@ -32,20 +32,130 @@
     },
     {
       "text": "あ、もう昼だ。お腹すいた〜、一緒に食べようよ。",
-      "audio": "audio/ee8c530e.m4a",
+      "audio": "/cache/_shared/audio/ee8c530e.m4a",
       "furigana": "あ、もう昼(ひる)だ。お腹(なか)すいた〜、一緒(いっしょ)に食(た)べようよ。",
       "words": [],
       "bytes": 24540,
       "hash": "ee8c530e"
     },
     {
+      "text": "ねえ、放課後ひま？どっか寄ってこうよ。",
+      "audio": "/cache/_shared/audio/6c5b1704.m4a",
+      "furigana": "ねえ、放課後(ほうかご)ひま？どっか寄(よ)ってこうよ。",
+      "words": [
+        {
+          "w": "放課後",
+          "gloss": "방과후"
+        }
+      ],
+      "bytes": 19321,
+      "hash": "6c5b1704"
+    },
+    {
+      "text": "あ、二人で何の話〜？私も混ぜてよ！",
+      "audio": "/cache/_shared/audio/d5d3359d.m4a",
+      "furigana": "あ、二(に)人(にん)で何(なに)の話(はなし)〜？私(わたし)も混(ま)ぜてよ！",
+      "words": [],
+      "bytes": 22634,
+      "hash": "d5d3359d"
+    },
+    {
       "text": "…なんかさ、最近どうなの？元気にしてる？",
-      "audio": "audio/c9398c43.m4a",
+      "audio": "/cache/_shared/audio/c9398c43.m4a",
       "furigana": "…なんかさ、最近(さいきん)どうなの？元気(げんき)にしてる？",
       "words": [],
       "bytes": 20331,
       "hash": "c9398c43"
+    },
+    {
+      "text": "おっ、いいね！",
+      "audio": "/cache/_shared/audio/fc3501e0.m4a",
+      "furigana": "おっ、いいね！",
+      "words": [],
+      "bytes": 11591,
+      "hash": "fc3501e0"
+    },
+    {
+      "text": "はいよ、了解！",
+      "audio": "/cache/_shared/audio/a88add22.m4a",
+      "furigana": "はいよ、了解(りょうかい)！",
+      "words": [],
+      "bytes": 12122,
+      "hash": "a88add22"
+    },
+    {
+      "text": "うん、なるほどね",
+      "audio": "/cache/_shared/audio/2362359c.m4a",
+      "furigana": "うん、なるほどね",
+      "words": [],
+      "bytes": 13156,
+      "hash": "2362359c"
+    },
+    {
+      "text": "また来てね！またいつでもおいで",
+      "audio": "/cache/_shared/audio/cc9412b5.m4a",
+      "furigana": "また来(き)てね！またいつでもおいで",
+      "words": [],
+      "bytes": 18438,
+      "hash": "cc9412b5"
+    },
+    {
+      "text": "もう一度どうぞ",
+      "audio": "/cache/_shared/audio/2b53ba97.m4a",
+      "furigana": "もう一度(いちど)どうぞ",
+      "words": [],
+      "bytes": 11349,
+      "hash": "2b53ba97"
+    },
+    {
+      "text": "ゆっくりでいいよ、もう一度",
+      "audio": "/cache/_shared/audio/085c3e84.m4a",
+      "furigana": "ゆっくりでいいよ、もう一度(いちど)",
+      "words": [],
+      "bytes": 19104,
+      "hash": "085c3e84"
+    },
+    {
+      "text": "うーん…",
+      "audio": "/cache/_shared/audio/27161957.m4a",
+      "furigana": "うーん…",
+      "words": [],
+      "bytes": 12693,
+      "hash": "27161957"
+    },
+    {
+      "text": "えーと…",
+      "audio": "/cache/_shared/audio/2206c6ee.m4a",
+      "furigana": "えーと…",
+      "words": [],
+      "bytes": 13745,
+      "hash": "2206c6ee"
+    },
+    {
+      "text": "あのー…",
+      "audio": "/cache/_shared/audio/db432bae.m4a",
+      "furigana": "あのー…",
+      "words": [],
+      "bytes": 11884,
+      "hash": "db432bae"
+    },
+    {
+      "text": "んー…",
+      "audio": "/cache/_shared/audio/2d185d51.m4a",
+      "furigana": "んー…",
+      "words": [],
+      "bytes": 11078,
+      "hash": "2d185d51"
     }
   ],
-  "aizuchi": []
+  "aizuchi": [
+    "/cache/_shared/audio/27161957.m4a",
+    "/cache/_shared/audio/2206c6ee.m4a",
+    "/cache/_shared/audio/db432bae.m4a",
+    "/cache/_shared/audio/2d185d51.m4a"
+  ],
+  "bgm": {
+    "ending": "/cache/ep_03/bgm/ending.m4a",
+    "bytes": 53257
+  }
 }
