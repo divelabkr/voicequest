@@ -72,6 +72,10 @@ const sessions = new Map<string, { state: GameState; usage: UsageState; events: 
 const dailyStates = new Map<string, DailyState>(); // userId별 데일리 3마디 SRS·스트릭(영속)
 const dailyUsage = new Map<string, UsageState>(); // userId별 데일리 일일 턴캡(STT 폭주·예산 우회 차단, /session/turn과 같은 STAGE 캡 공유 / 인메모리·재시작 리셋 허용)
 const freetalkStates = new Map<string, { used: string[]; affinity: number; turns: number; dayStamp: string }>(); // 프리토크 세션 — 토픽·호감도(누적)·턴수(dayStamp 일자 리셋). saveState 영속(W2: 재시작 우회·호감도 증발 차단)
+// 세션 토큰 → userId(레드팀: sid bearer 제거 — userId 위조·노출로 인한 사칭·IDOR 차단). redeem 시 발급, 영속.
+const sessionTokens = new Map<string, string>();
+const resolveUser = (token: string): string => sessionTokens.get(token) ?? ""; // 토큰 해석(미인증=빈문자 → accounts.has·canUseVoice 게이트가 차단)
+function issueToken(userId: string): string { const t = randomBytes(24).toString("hex"); sessionTokens.set(t, userId); saveState(); return t; } // 192비트 랜덤(추측 불가)
 const FREETALK_FREE_TURNS = 10; // 무료 프리토크 일일 턴(캐시카우 BM: 무료 8~10턴 + 소진 시 강등)
 // freetalk 리액션 — 판정·안전 카테고리로 NPC 반응 결정. 순수·테스트 가능(W4 fail-safe: uncertain=과차단 방지).
 export function freetalkReaction(grade: string, nextSceneId: string, harmful: boolean, uncertain: boolean): string {
@@ -110,7 +114,7 @@ function saveState(): void {
     saveTimer = null;
     try {
       mkdirSync(DATA_DIR, { recursive: true });
-      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates] }), (err) => {
+      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] }), (err) => {
         if (err) console.error("[persist] saveState 실패:", err.message); // 실패를 더는 삼키지 않음
       });
     } catch (e) { console.error("[persist] saveState 실패:", String(e)); }
@@ -119,15 +123,16 @@ function saveState(): void {
 // 레드팀 H-3: 디바운스 윈도우 손실 방지 — 종료 시그널에 동기 flush(재시작 직전 turn 영속 보장).
 function flushStateSync(): void {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates] })); } catch (e) { console.error("[persist] flush 실패:", String(e)); }
+  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] })); } catch (e) { console.error("[persist] flush 실패:", String(e)); }
 }
 for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, () => { flushStateSync(); process.exit(0); });
 try {
-  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][]; freetalk?: [string, { used: string[]; affinity: number; turns: number; dayStamp: string }][] };
+  const s = JSON.parse(readFileSync(STATE_FILE, "utf8")) as { accounts: [string, Account][]; invites: [string, InviteCode][]; daily?: [string, DailyState][]; freetalk?: [string, { used: string[]; affinity: number; turns: number; dayStamp: string }][]; tokens?: [string, string][] };
   for (const [k, v] of s.accounts) accounts.set(k, v);
   for (const [k, v] of s.invites) invites.set(k, v);
   for (const [k, v] of s.daily ?? []) dailyStates.set(k, v);
   for (const [k, v] of s.freetalk ?? []) freetalkStates.set(k, v);
+  for (const [k, v] of s.tokens ?? []) sessionTokens.set(k, v);
 } catch { /* 첫 실행: 상태 파일 없음 */ }
 
 // [M5] 일일 턴캡 리셋 기준 = KST(UTC+9) 자정 — 유저 체감 "오늘"과 일치
@@ -181,6 +186,7 @@ function sweepMaps(now: number): void {
   for (const [k, v] of sessions) if (now - v.lastSeen > SESSION_TTL_MS) sessions.delete(k);
   for (const k of dailyStates.keys()) if (!accounts.has(k)) dailyStates.delete(k); // accounts 없는 orphan(탈퇴·잔여) 정리 — 무한 증가 차단
   for (const k of freetalkStates.keys()) if (!accounts.has(k)) freetalkStates.delete(k); // 프리토크 세션 orphan 정리
+  for (const [t, u] of sessionTokens) if (!accounts.has(u)) sessionTokens.delete(t); // 토큰 orphan 정리(삭제된 userId)
 }
 // 잊혀질 권리(§9) — 유저별 이벤트 파일 위치. 탈퇴 시 purge 대상.
 const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.url));
@@ -270,7 +276,7 @@ export const server = createServer(async (req, res) => {
     }
     // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭
     if (req.method === "GET" && req.url?.startsWith("/daily?")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       if (!accounts.has(sid)) { res.end(JSON.stringify({ cards: [], streak: 0 })); return; } // 미인증 sid가 dailyStates를 생성 못하게(메모리 누수·DoS 차단)
       let ds = dailyStates.get(sid);
       if (!ds) { ds = { cards: [], streak: 0, lastDoneDay: 0 }; dailyStates.set(sid, ds); }
@@ -288,7 +294,7 @@ export const server = createServer(async (req, res) => {
     // 데일리 발화 — audio → STT → 표현 매칭(matchGrade) → SRS 갱신 + 스트릭
     if (req.method === "POST" && req.url?.startsWith("/daily/turn")) {
       const u = new URL(req.url, "http://x");
-      const sid = u.searchParams.get("sid") ?? "", exp = u.searchParams.get("exp") ?? "";
+      const sid = resolveUser(u.searchParams.get("sid") ?? ""), exp = u.searchParams.get("exp") ?? "";
       if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
       // 분당 턴 상한(초당 연타 차단) — /session/turn과 동일 burst 방어
       if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
@@ -321,7 +327,7 @@ export const server = createServer(async (req, res) => {
       const level = (q.get("level") || undefined) as SceneLevel | undefined;
       const theme = q.get("theme") || undefined;
       const count = Math.min(12, Math.max(1, Number(q.get("count")) || 5));
-      const sid = q.get("sid") ?? "";
+      const sid = resolveUser(q.get("sid") ?? ""); // 토큰 해석(F-B replace가 q.searchParams를 못 잡아 누락됐던 것 — 개인 SRS 복구)
       // 개인 SRS 박스(dailyStates) 우선 + 미보유분은 전역 풀에서 보충 → 복습 due가 앞으로
       const personal = dailyStates.get(sid)?.cards ?? [];
       const have = new Set(personal.map((c) => c.expression));
@@ -333,7 +339,7 @@ export const server = createServer(async (req, res) => {
     // 따라하기 발화 — audio → STT → judge(제시=정답 pseudo-scene, fastMatch 우선) → SRS 갱신. /daily/turn과 동일 게이트.
     if (req.method === "POST" && req.url?.startsWith("/shadow/turn")) {
       const u = new URL(req.url, "http://x");
-      const sid = u.searchParams.get("sid") ?? "", exp = u.searchParams.get("exp") ?? "";
+      const sid = resolveUser(u.searchParams.get("sid") ?? ""), exp = u.searchParams.get("exp") ?? "";
       if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
       if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
       const sUsage = dailyUsage.get(sid) ?? { turnsToday: 0, dayStamp: today() };
@@ -357,7 +363,7 @@ export const server = createServer(async (req, res) => {
     }
     // 프리토크(캐시카우) — NPC가 토픽 질문 던짐 → 유저 자유발화 → OPIc rubric 평가 → 캐시 리액션. 토픽카드=골격(§0 준수, NPC 캐시).
     if (req.method === "GET" && req.url?.startsWith("/freetalk?")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       if (!accounts.has(sid)) { res.end(JSON.stringify({ topic: null })); return; } // 미인증 가드(누수·DoS)
       const st = freetalkStates.get(sid) ?? { used: [], affinity: 0, turns: 0, dayStamp: today() };
       if (st.dayStamp !== today()) { st.turns = 0; st.dayStamp = today(); } // 일자 리셋 — turns만 0(호감도·토픽 누적 유지, W2)
@@ -368,7 +374,7 @@ export const server = createServer(async (req, res) => {
     }
     if (req.method === "POST" && req.url?.startsWith("/freetalk/turn")) {
       const u = new URL(req.url, "http://x");
-      const sid = u.searchParams.get("sid") ?? "", topicId = u.searchParams.get("topic") ?? "";
+      const sid = resolveUser(u.searchParams.get("sid") ?? ""), topicId = u.searchParams.get("topic") ?? "";
       if (!canUseVoice(accounts.get(sid))) { res.statusCode = 403; res.end(JSON.stringify({ error: "consent_required" })); return; }
       if (!turnRateOk(sid, Date.now())) { res.statusCode = 429; res.end(JSON.stringify({ error: "rate_limited" })); return; }
       const fUsage = dailyUsage.get(sid) ?? { turnsToday: 0, dayStamp: today() };
@@ -559,7 +565,7 @@ export const server = createServer(async (req, res) => {
     }
     // ── 에피소드 완주 결과 — readModel(6스탯·호감도·시험역량) 노출(③ Result 화면) ──
     if (req.url?.startsWith("/session/result")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       if (!accounts.has(sid)) { res.statusCode = 403; res.end(JSON.stringify({ error: "forbidden" })); return; } // 레드팀 IDOR: 미가입 sid 차단
       const sess = sessions.get(sid);
       if (!sess) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_session" })); return; }
@@ -567,7 +573,7 @@ export const server = createServer(async (req, res) => {
       return;
     }
     if (req.url?.startsWith("/session/signals")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "anon";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       if (!accounts.has(sid)) { res.statusCode = 403; res.end(JSON.stringify({ error: "forbidden" })); return; } // 레드팀 IDOR
       const ev = sessions.get(sid)?.events ?? [];
       res.end(JSON.stringify({ timeToFirstWin: timeToFirstWin(ev), dropPoint: dropPoint(ev), churnRisk: churnRisk(ev) }));
@@ -608,6 +614,7 @@ export const server = createServer(async (req, res) => {
       sessions.delete(body.userId);
       dailyStates.delete(body.userId); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
       freetalkStates.delete(body.userId); // 프리토크 세션도 purge(§9)
+      for (const [t, u] of sessionTokens) if (u === body.userId) sessionTokens.delete(t); // 세션 토큰 purge(§9)
       dailyUsage.delete(body.userId);
       accounts.delete(body.userId);
       try { await makeEventStore({ firestoreApp, eventsDir: EVENTS_DIR, userId: body.userId }).purge?.(body.userId); } catch (e) { console.error("[purge]", String(e)); }
@@ -629,18 +636,18 @@ export const server = createServer(async (req, res) => {
       // [C3] 아래는 await 없이 동기 실행 — 정원 검사·예약이 원자적(동시 요청 정원 초과 방지).
       //      여기에 await를 새로 끼우면 race가 생기니 주의.
       const existing = accounts.get(body.userId);
-      if (existing) { invites.set(body.code, rd.invite); saveState(); res.end(JSON.stringify(existing)); return; }
+      if (existing) { invites.set(body.code, rd.invite); saveState(); res.end(JSON.stringify({ ...existing, token: issueToken(body.userId) })); return; }
       if (accounts.size >= CAP) { res.statusCode = 429; res.end(JSON.stringify({ status: "waitlisted" })); return; }
       const acc = signup(body.userId, body.consent, Date.now());
       accounts.set(body.userId, acc); // 자리 즉시 예약(size 증가)
       invites.set(body.code, rd.invite); // 코드 바인딩 확정
       saveState();
-      res.end(JSON.stringify(acc));
+      res.end(JSON.stringify({ ...acc, token: issueToken(body.userId) }));
       return;
     }
     // ── 탈퇴(잊혀질 권리 — 계정·세션·이벤트 삭제 + 코드 폐기) ──
     if (req.method === "POST" && req.url?.startsWith("/account/withdraw")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       const acc = accounts.get(sid);
       if (!acc) { res.statusCode = 404; res.end(JSON.stringify({ error: "no_account" })); return; }
       const w = withdraw(acc);
@@ -650,6 +657,7 @@ export const server = createServer(async (req, res) => {
       sessions.delete(sid);
       dailyStates.delete(sid); // 데일리 SRS·스트릭도 purge(§9 잊혀질 권리)
       freetalkStates.delete(sid); // 프리토크 세션도 purge(§9)
+      for (const [t, u] of sessionTokens) if (u === sid) sessionTokens.delete(t); // 세션 토큰 purge(§9)
       dailyUsage.delete(sid);
       accounts.delete(sid);
       // 잊혀질 권리(§9) — 영속 events 파일도 삭제(미연결이면 noop, 연결 시 자동 적용)
@@ -660,7 +668,7 @@ export const server = createServer(async (req, res) => {
     }
     // ── 턴 루프 ──
     if (req.method === "POST" && req.url?.startsWith("/session/turn")) {
-      const sid = new URL(req.url, "http://x").searchParams.get("sid") ?? "anon";
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
       // 본문 상한(5MB) 검사를 게이트보다 먼저 — 버퍼링 중 초과 시 413으로 끊어 DoS 방어
       const audio = await readBodyBuf(req, res); if (audio === null) return;
       // 계정·동의 게이트(§9): 가입 + 국외이전 동의 없으면 음성 사용 불가

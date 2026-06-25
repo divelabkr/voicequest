@@ -66,7 +66,7 @@ function reportError(k,m,w){try{fetch(API+'/client-error',{method:'POST',headers
 window.addEventListener('error',function(e){reportError('client_js',(e.message||'')+' @'+((e.filename||'').split('/').pop())+':'+(e.lineno||''),'web');});
 window.addEventListener('unhandledrejection',function(e){reportError('client_js','unhandled: '+((e.reason&&e.reason.message)||e.reason||''),'web');});
 (function(){var _f=window.fetch;window.fetch=function(u){var p=_f.apply(this,arguments);if(String(u).indexOf('/client-error')<0)p.catch(function(err){reportError('client_fetch',String(err)+' '+u,'web');});return p;};})();
-let userId = localStorage.getItem('vq_uid') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집', showFuri = localStorage.getItem('vq_furi') !== '0';
+let userId = localStorage.getItem('vq_token') || null, rec = null, recChunks = [], currentEp = 'ep_01_daiki_diner', currentEpTitle = '다이키 · 라멘집', showFuri = localStorage.getItem('vq_furi') !== '0';
 
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function furi(s){ return (s||'').replace(/([一-龯々〆ヶ]+)\(([ぁ-んァ-ヶー]+)\)/g,'<ruby>$1<rt>$2</rt></ruby>'); }
@@ -122,7 +122,7 @@ function signupView(){
     try{
       const r = await fetch(API+'/auth/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value.trim().toUpperCase(),userId:uid,consent:{overseasTransfer:true,dataProcessing:true}})});
       const j = await r.json();
-      if(j.status==='active'){ userId=uid; localStorage.setItem('vq_uid',uid); (localStorage.getItem('vq_welcomed')?selectView():welcomeView()); }
+      if(j.status==='active'&&j.token){ userId=j.token; localStorage.setItem('vq_token',j.token); (localStorage.getItem('vq_welcomed')?selectView():welcomeView()); } // 레드팀: 서버 발급 토큰 보관(userId 평문 bearer 폐기)
       else { app.querySelector('#err').textContent = j.error==='invite_not_found'?'유효하지 않은 코드예요':j.error==='invite_already_redeemed'?'이미 사용된 코드예요':j.error||'동의/정원을 확인하세요'; go.disabled=false; }
     }catch(e){ app.querySelector('#err').textContent='서버 연결 실패: '+e; go.disabled=false; }
   };
