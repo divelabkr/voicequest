@@ -36,7 +36,7 @@ export { SRS_INTERVALS_DAYS, dayOf, todaysCards, reviewCard, completeToday, make
 export type { DailyCard, DailyState } from "./daily";
 export { pickShadowCards, cardToScene, shadowLevels, shadowThemes } from "./shadow";
 export type { ShadowMode, ShadowParams } from "./shadow";
-export { topicToScene, pickTopic, DAIKI_TOPICS } from "./freetalk";
+export { topicToScene, pickTopic, DAIKI_TOPICS, MIDORI_TOPICS, SORA_TOPICS, CHAR_TOPICS, topicsForChar } from "./freetalk";
 export type { Topic } from "./freetalk";
 export { VOICE_CANDIDATES, DEFAULT_PRESETS } from "./voice";
 export type { VoicePreset } from "./voice";

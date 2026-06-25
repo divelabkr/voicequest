@@ -38,3 +38,25 @@ export const DAIKI_TOPICS: Topic[] = [
   { id: "ramen", question: "うちのラーメン、どうだった？", rubric: "라멘 맛·감상을 구체적으로 1문장 이상", minSentences: 1 },
   { id: "weekend", question: "休みの日は何してるの？", rubric: "주말·취미 활동 1가지 이상", minSentences: 1 },
 ];
+
+/** 미도리 — 환승역/교통 맥락(ep_02). */
+export const MIDORI_TOPICS: Topic[] = [
+  { id: "destination", question: "今日はどこまで行くの？", rubric: "목적지·행선지를 1문장 이상. 시도하면 통과", minSentences: 1 },
+  { id: "transfer", question: "乗り換え、迷わなかった？", rubric: "환승·길찾기 경험이나 감상 1가지", minSentences: 1 },
+  { id: "city", question: "東京の電車、どう思う？", rubric: "도쿄 교통·도시 인상 1가지 이상", minSentences: 1 },
+  { id: "hometown_transit", question: "君の国の交通はどんな感じ？", rubric: "고향 교통수단 1가지 이상", minSentences: 1 },
+  { id: "trip", question: "電車でどこか遠くに行きたい？", rubric: "가고 싶은 곳·여행 1가지", minSentences: 1 },
+];
+
+/** 소라 — 학교/방과후 맥락(ep_03). */
+export const SORA_TOPICS: Topic[] = [
+  { id: "club", question: "部活とか入ってる？", rubric: "동아리·방과후 활동 1가지 이상. 시도하면 통과", minSentences: 1 },
+  { id: "study", question: "今、何の勉強してるの？", rubric: "공부·과목 1가지 이상", minSentences: 1 },
+  { id: "friends", question: "学校で仲いい子いる？", rubric: "친구·교우 관계 1가지", minSentences: 1 },
+  { id: "after_school", question: "放課後はいつも何してる？", rubric: "방과후 일과 1가지 이상", minSentences: 1 },
+  { id: "dream", question: "将来やりたいことある？", rubric: "장래희망·꿈 1가지", minSentences: 1 },
+];
+
+/** 캐릭터 → 토픽 풀. server가 에피소드 character로 선택(캐시카우를 캐릭터별로 확장). */
+export const CHAR_TOPICS: Record<string, Topic[]> = { daiki: DAIKI_TOPICS, midori: MIDORI_TOPICS, sora: SORA_TOPICS };
+export const topicsForChar = (char: string): Topic[] => CHAR_TOPICS[char] ?? DAIKI_TOPICS;

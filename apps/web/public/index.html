@@ -260,7 +260,7 @@ async function freetalkView(){
   markPlayed();
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">다이키와 수다 준비 중…</div></div>';
-  let d; try{ d=await (await fetch(API+'/freetalk?sid='+userId)).json(); }catch(e){ app.innerHTML='<div class="center"><div class="err">로드 실패</div></div>'; return; }
+  let d; try{ d=await (await fetch(API+'/freetalk?sid='+userId+'&ep='+currentEp)).json(); }catch(e){ app.innerHTML='<div class="center"><div class="err">로드 실패</div></div>'; return; }
   window._ft={topic:d.topic, affinity:d.affinity||0, remain:d.remain||0, log:[]};
   freetalkCard();
 }
@@ -285,7 +285,7 @@ async function freetalkMic(){
   var blob=await new Promise(function(res){ rec.onstop=function(){ rec.stream.getTracks().forEach(function(t){t.stop()}); res(new Blob(recChunks,{type:'audio/webm'})); }; rec.stop(); }); rec=null;
   var st=window._ft;
   try{
-    var r=await fetch(API+'/freetalk/turn?sid='+userId+'&topic='+encodeURIComponent(st.topic.id),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
+    var r=await fetch(API+'/freetalk/turn?sid='+userId+'&topic='+encodeURIComponent(st.topic.id)+'&ep='+currentEp,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
     var j=await r.json();
     st.log.push('<div class="bubble you">'+esc2(j.transcript||'(못 알아들음)')+'</div>');
     st.log.push('<div class="bubble npc"><b>다이키</b> '+esc2(j.reaction||'')+'</div>');
