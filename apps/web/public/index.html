@@ -326,6 +326,8 @@ async function resultView(){
   const app=document.getElementById('app');
   app.innerHTML='<div class="center"><div class="sub">결과 정리 중…</div></div>';
   let rm={}; try{ rm=await (await fetch(API+'/session/result?sid='+userId)).json(); }catch(e){}
+  // 엔딩 BGM — 캐시 음성 콜라주(manifest.bgm, MusicPort). 완주 정서·리텐션, 신규 비용 0.
+  try{ var _eps=await (await fetch(API+'/episodes')).json(); var _ep=(_eps.episodes||[]).find(function(e){return e.id===currentEp;}); if(_ep&&_ep.bgm&&_ep.bgm.ending){ var _b=new Audio(API+_ep.bgm.ending); _b.volume=0.55; _b.play().catch(function(){}); } }catch(e){}
   const aff=Object.values(rm.affinity||{})[0]||0;
   const n=aff>=6?3:aff>=3?2:1;
   const s6=rm.stats6||{};

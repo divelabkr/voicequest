@@ -56,7 +56,7 @@ const genPort = makeGenPort(ANTHROPIC_KEY);
 type CacheLine = { text: string; audio: string; furigana: string; words: { w: string; gloss: string }[] };
 // 에피소드별 음성 manifest(없으면 자막) — 캐시 디렉토리 ep_01/ep_02/ep_03
 const normText = (s: string): string => s.replace(/！/g, "!").replace(/？/g, "?").trim();
-const MANIFESTS = new Map<string, { lines: CacheLine[]; aizuchi?: string[]; byNorm: Map<string, CacheLine> }>();
+const MANIFESTS = new Map<string, { lines: CacheLine[]; aizuchi?: string[]; bgm?: { ending: string; bytes: number }; byNorm: Map<string, CacheLine> }>();
 const shortOf = (epId: string): string => epId.split("_").slice(0, 2).join("_");
 function loadManifest(epId: string): void {
   try {
@@ -259,7 +259,7 @@ export const server = createServer(async (req, res) => {
     }
     // 공개: 에피소드 목록(Select 화면) — 음성 캐시 여부 포함
     if (req.method === "GET" && req.url === "/episodes") {
-      res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id), aizuchi: (MANIFESTS.get(e.id)?.aizuchi ?? []).map((a) => a.startsWith("/") ? a : `/cache/${shortOf(e.id)}/${a}`) })) }));
+      res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id), aizuchi: (MANIFESTS.get(e.id)?.aizuchi ?? []).map((a) => a.startsWith("/") ? a : `/cache/${shortOf(e.id)}/${a}`), bgm: MANIFESTS.get(e.id)?.bgm })) }));
       return;
     }
     // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭
