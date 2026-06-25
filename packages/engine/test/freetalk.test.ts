@@ -1,6 +1,6 @@
 // 프리토크 토픽카드 — topicToScene(OPIc pseudo-scene) + pickTopic(순환) 단위 테스트.
 import { describe, it, expect } from "vitest";
-import { topicToScene, pickTopic, DAIKI_TOPICS, type Topic } from "../src/freetalk";
+import { topicToScene, pickTopic, DAIKI_TOPICS, MIDORI_TOPICS, SORA_TOPICS, CHAR_TOPICS, topicsForChar, type Topic } from "../src/freetalk";
 
 describe("프리토크 토픽카드", () => {
   it("topicToScene: OPIc challenge + allowedExpressions 빈(자유발화 rubric 경로)", () => {
@@ -31,5 +31,18 @@ describe("프리토크 토픽카드", () => {
   it("DAIKI_TOPICS: minSentences 1(진입 쉽게) + 5개 이상", () => {
     expect(DAIKI_TOPICS.every((t) => t.minSentences === 1)).toBe(true);
     expect(DAIKI_TOPICS.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("캐릭터별 토픽 — midori·sora 각 5개, minSentences 1(캐시카우 ×N)", () => {
+    expect(MIDORI_TOPICS.length).toBe(5);
+    expect(SORA_TOPICS.length).toBe(5);
+    expect([...MIDORI_TOPICS, ...SORA_TOPICS].every((t) => t.minSentences === 1)).toBe(true);
+    expect(CHAR_TOPICS.daiki).toBe(DAIKI_TOPICS);
+  });
+
+  it("topicsForChar — 캐릭터 매핑 + 미지 캐릭터는 daiki 폴백", () => {
+    expect(topicsForChar("midori")).toBe(MIDORI_TOPICS);
+    expect(topicsForChar("sora")).toBe(SORA_TOPICS);
+    expect(topicsForChar("unknown")).toBe(DAIKI_TOPICS);
   });
 });

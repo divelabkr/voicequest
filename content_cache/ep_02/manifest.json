@@ -166,6 +166,78 @@
       "words": [],
       "bytes": 9543,
       "hash": "cf627ab9"
+    },
+    {
+      "text": "今日はどこまで行くの？",
+      "audio": "/cache/_shared/audio/0763b5ab.m4a",
+      "furigana": "今日(きょう)はどこまで行(い)くの？",
+      "words": [],
+      "bytes": 13275,
+      "hash": "0763b5ab"
+    },
+    {
+      "text": "乗り換え、迷わなかった？",
+      "audio": "/cache/_shared/audio/0b060f45.m4a",
+      "furigana": "乗(の)り換(か)え、迷(まよ)わなかった？",
+      "words": [],
+      "bytes": 15652,
+      "hash": "0b060f45"
+    },
+    {
+      "text": "東京の電車、どう思う？",
+      "audio": "/cache/_shared/audio/5fcee346.m4a",
+      "furigana": "東京(とうきょう)の電車(でんしゃ)、どう思(おも)う？",
+      "words": [],
+      "bytes": 15940,
+      "hash": "5fcee346"
+    },
+    {
+      "text": "君の国の交通はどんな感じ？",
+      "audio": "/cache/_shared/audio/fef0dd81.m4a",
+      "furigana": "君(きみ)の国(くに)の交通(こうつう)はどんな感(かん)じ？",
+      "words": [],
+      "bytes": 16018,
+      "hash": "fef0dd81"
+    },
+    {
+      "text": "電車でどこか遠くに行きたい？",
+      "audio": "/cache/_shared/audio/b32143ec.m4a",
+      "furigana": "電車(でんしゃ)でどこか遠(とお)くに行(い)きたい？",
+      "words": [],
+      "bytes": 16802,
+      "hash": "b32143ec"
+    },
+    {
+      "text": "へえ、いいね！もっと聞かせて。",
+      "audio": "/cache/_shared/audio/d289c234.m4a",
+      "furigana": "へえ、いいね！もっと聞(き)かせて。",
+      "words": [],
+      "bytes": 18474,
+      "hash": "d289c234"
+    },
+    {
+      "text": "なるほどね。",
+      "audio": "/cache/_shared/audio/8f3724ec.m4a",
+      "furigana": "なるほどね。",
+      "words": [],
+      "bytes": 12506,
+      "hash": "8f3724ec"
+    },
+    {
+      "text": "うーん、そっか。",
+      "audio": "/cache/_shared/audio/d2c828e7.m4a",
+      "furigana": "うーん、そっか。",
+      "words": [],
+      "bytes": 13632,
+      "hash": "d2c828e7"
+    },
+    {
+      "text": "ごめん、もう一度言ってくれる？",
+      "audio": "/cache/_shared/audio/82282e49.m4a",
+      "furigana": "ごめん、もう一度(いちど)言(い)ってくれる？",
+      "words": [],
+      "bytes": 15426,
+      "hash": "82282e49"
     }
   ],
   "aizuchi": [

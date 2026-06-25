@@ -146,6 +146,96 @@
       "words": [],
       "bytes": 11078,
       "hash": "2d185d51"
+    },
+    {
+      "text": "部活とか入ってる？",
+      "audio": "/cache/_shared/audio/3851da6a.m4a",
+      "furigana": "部活(ぶかつ)とか入(はい)ってる？",
+      "words": [],
+      "bytes": 13166,
+      "hash": "3851da6a"
+    },
+    {
+      "text": "今、何の勉強してるの？",
+      "audio": "/cache/_shared/audio/4932acbf.m4a",
+      "furigana": "今(いま)、何(なに)の勉強(べんきょう)してるの？",
+      "words": [
+        {
+          "w": "今",
+          "gloss": "지금, 현재"
+        }
+      ],
+      "bytes": 14871,
+      "hash": "4932acbf"
+    },
+    {
+      "text": "学校で仲いい子いる？",
+      "audio": "/cache/_shared/audio/6035a542.m4a",
+      "furigana": "学校(がっこう)で仲(なか)いい子(こ)いる？",
+      "words": [],
+      "bytes": 13589,
+      "hash": "6035a542"
+    },
+    {
+      "text": "放課後はいつも何してる？",
+      "audio": "/cache/_shared/audio/3fd97d4d.m4a",
+      "furigana": "放課後(ほうかご)はいつも何(なに)してる？",
+      "words": [
+        {
+          "w": "放課後",
+          "gloss": "방과후"
+        }
+      ],
+      "bytes": 14144,
+      "hash": "3fd97d4d"
+    },
+    {
+      "text": "将来やりたいことある？",
+      "audio": "/cache/_shared/audio/1ce8f4df.m4a",
+      "furigana": "将来(しょうらい)やりたいことある？",
+      "words": [],
+      "bytes": 15184,
+      "hash": "1ce8f4df"
+    },
+    {
+      "text": "へえ、いいね！もっと聞かせて。",
+      "audio": "/cache/_shared/audio/0667216c.m4a",
+      "furigana": "へえ、いいね！もっと聞(き)かせて。",
+      "words": [],
+      "bytes": 16986,
+      "hash": "0667216c"
+    },
+    {
+      "text": "なるほどね。",
+      "audio": "/cache/_shared/audio/ed170d24.m4a",
+      "furigana": "なるほどね。",
+      "words": [],
+      "bytes": 11811,
+      "hash": "ed170d24"
+    },
+    {
+      "text": "うーん、そっか。",
+      "audio": "/cache/_shared/audio/8a49fdbf.m4a",
+      "furigana": "うーん、そっか。",
+      "words": [],
+      "bytes": 14281,
+      "hash": "8a49fdbf"
+    },
+    {
+      "text": "ごめん、もう一度言ってくれる？",
+      "audio": "/cache/_shared/audio/dd2ddee1.m4a",
+      "furigana": "ごめん、もう一度(いちど)言(い)ってくれる？",
+      "words": [],
+      "bytes": 15513,
+      "hash": "dd2ddee1"
+    },
+    {
+      "text": "うーん、その話はやめておこうか。別のことを話そう。",
+      "audio": "/cache/_shared/audio/2c4160ce.m4a",
+      "furigana": "うーん、その話(はなし)はやめておこうか。別(べつ)のことを話(はな)そう。",
+      "words": [],
+      "bytes": 25820,
+      "hash": "2c4160ce"
     }
   ],
   "aizuchi": [
