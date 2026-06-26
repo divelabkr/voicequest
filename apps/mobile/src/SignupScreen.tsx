@@ -66,7 +66,7 @@ export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: stri
           placeholderTextColor={T.hint}
           autoCapitalize="characters"
           autoCorrect={false}
-          maxLength={11}
+          maxLength={12}
         />
 
         <View style={st.row}>
