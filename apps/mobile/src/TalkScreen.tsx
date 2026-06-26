@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { postTurn, withdraw, API_BASE, type TurnResult } from "./api";
 import { createRecorder, type Recorder } from "./recorder";
-import { playAudio, playBgm, stopBgm } from "./player";
+import { playAudio } from "./player";
 import Furigana from "./Furigana";
 import { T } from "./theme";
 
@@ -38,12 +38,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
     setBusy(false);
   }, [apply, userId, onDone]);
 
-  const enter = useCallback(async () => {
-    setEntered(true);
-    // 엔딩 BGM 루프 — 입장 분위기(web과 동일, manifest.bgm.ending). 캐시 콜라주라 비용 0.
-    try { const eps = await (await fetch(`${API_BASE}/episodes`)).json(); const e0 = (eps.episodes || [])[0]; if (e0?.bgm?.ending) playBgm(`${API_BASE}${e0.bgm.ending}`); } catch { /* BGM 실패 무시 */ }
-    await advanceNpc();
-  }, [advanceNpc]);
+  const enter = useCallback(async () => { setEntered(true); await advanceNpc(); }, [advanceNpc]);
 
   const onMic = useCallback(async () => {
     if (busy) return;
@@ -69,7 +64,6 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   }, [rec, busy, apply, advanceNpc, userId, onDone]);
 
   useEffect(() => { micActionRef.current = onMic; }, [onMic]);
-  useEffect(() => () => stopBgm(), []); // 화면 이탈 시 BGM 정지
 
   return (
     <View style={st.root}>
