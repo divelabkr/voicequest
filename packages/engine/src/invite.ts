@@ -12,11 +12,13 @@ export interface InviteCode {
   note?: string; // 운영자 메모(누구에게 발급했는지)
   issuedTs: number;
   redeemedTs?: number;
+  /** 친구 초대 — 이 코드를 만든 유저(있으면 redeem 시 양쪽 1달 무료). 운영자 발급은 없음. */
+  inviterUserId?: string;
 }
 
 /** 발급 — 운영자가 생성한 코드 문자열을 issued 상태로 등록. */
-export function issueInvite(code: string, ts: number, note?: string): InviteCode {
-  return { code, status: "issued", note, issuedTs: ts };
+export function issueInvite(code: string, ts: number, note?: string, inviterUserId?: string): InviteCode {
+  return { code, status: "issued", note, issuedTs: ts, inviterUserId };
 }
 
 export type RedeemResult =

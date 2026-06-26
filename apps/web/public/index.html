@@ -114,6 +114,7 @@ function signupView(){
     + '<div class="note">탈퇴 시 모든 대화 기록이 삭제됩니다(잊혀질 권리).</div>'
     + '</div>';
   const code=app.querySelector('#code'), c1=app.querySelector('#c1'), c2=app.querySelector('#c2'), go=app.querySelector('#go');
+  var inv=new URLSearchParams(location.search).get('invite'); if(inv&&code){ code.value=inv; } // 초대 링크 자동 채움(바이럴 전환↑)
   function upd(){ go.disabled = !(code.value.trim() && c1.checked && c2.checked); }
   [code,c1,c2].forEach(function(e){ e.addEventListener('input',upd); e.addEventListener('change',upd); });
   go.onclick = async function(){
@@ -341,8 +342,25 @@ async function resultView(){
     +'<div class="sub" style="margin-bottom:18px">호감도 ♥ '+aff+'</div>'
     +'<div style="text-align:left;margin:0 0 20px">'+bars+'</div>'
     +'<div style="display:flex;gap:10px;justify-content:center;margin-bottom:22px"><div style="background:var(--primary-soft);color:var(--primary);padding:10px 18px;border-radius:var(--radius-md);font-size:14px">JLPT 추정<br><b style="font-size:18px">'+jlpt+'</b></div><div style="background:var(--accent-soft);color:var(--accent);padding:10px 18px;border-radius:var(--radius-md);font-size:14px">OPIc<br><b style="font-size:18px">'+opic+'</b></div></div>'
-    +'<button class="btn cta" onclick="shadowSetup()">🗣 따라하기로 복습</button>'
+    +'<button class="btn cta" onclick="shareResult('+aff+','+n+')">📣 결과 공유하기</button>'
+    +'<button class="btn" style="margin-top:8px;background:var(--accent-soft);color:var(--accent);border:.5px solid var(--accent)" onclick="inviteFriend()">🎁 친구 초대 — 둘 다 1달 무료</button>'
+    +'<button class="btn cta" style="margin-top:8px" onclick="shadowSetup()">🗣 따라하기로 복습</button>'
     +'<button class="btn" style="margin-top:8px;background:var(--card);color:var(--muted);border:.5px solid var(--line)" onclick="location.reload()">다시 하기</button></div>';
+}
+async function shareResult(aff,stars){
+  var txt='VoiceQuest에서 '+esc2(currentEpTitle)+' 완주! 호감도 ♥'+aff+' '+'★'.repeat(stars)+' — 음성으로 일본어 대화하는 게임 🎤';
+  var url=location.origin+location.pathname;
+  try{ if(navigator.share){ await navigator.share({title:'VoiceQuest',text:txt,url:url}); } else { await navigator.clipboard.writeText(txt+' '+url); alert('공유 문구를 복사했어요!'); } }catch(e){}
+}
+async function inviteFriend(){
+  try{
+    var j=await (await fetch(API+'/invite/mine?sid='+userId)).json();
+    if(!j.code){ alert('초대코드를 불러오지 못했어요'); return; }
+    var url=location.origin+location.pathname+'?invite='+encodeURIComponent(j.code);
+    var txt='VoiceQuest 같이 하자! 이 코드로 가입하면 둘 다 1달 무료 🎁 코드 '+j.code;
+    if(navigator.share){ await navigator.share({title:'VoiceQuest 초대',text:txt,url:url}); }
+    else { await navigator.clipboard.writeText(txt+' '+url); alert('내 초대코드: '+j.code+'\n적립된 무료: '+(j.referralMonths||0)+'개월\n친구 가입 시 둘 다 +1달!\n\n공유 문구를 복사했어요!'); }
+  }catch(e){ alert('초대코드를 불러오지 못했어요'); }
 }
 
 function addBubble(res){

@@ -27,7 +27,7 @@ export { compareVersion, needsUpdate } from "./version";
 export { timeToFirstWin, dropPoint, churnRisk } from "./learning";
 export { scoreToStars, branchUp, worldlineId } from "./review";
 export { pickCallback, fillSlots } from "./callback";
-export { signup, canUseVoice, withdraw } from "./account";
+export { signup, canUseVoice, withdraw, grantReferral } from "./account";
 export type { Account, AccountStatus, ConsentFlags } from "./account";
 export { issueInvite, redeemInvite, revokeInvite } from "./invite";
 export type { InviteCode, InviteStatus, RedeemResult } from "./invite";
