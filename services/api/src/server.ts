@@ -274,6 +274,19 @@ export const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ episodes: [...EPISODES.values()].map((e) => ({ id: e.id, title: e.title, character: e.character, npcs: e.npcs ?? [], sceneCount: e.scenes.length, cached: MANIFESTS.has(e.id), aizuchi: (MANIFESTS.get(e.id)?.aizuchi ?? []).map((a) => a.startsWith("/") ? a : `/cache/${shortOf(e.id)}/${a}`), bgm: MANIFESTS.get(e.id)?.bgm })) }));
       return;
     }
+    // 법률 문서 서빙(알파 — 약관·개인정보, 동의 전 열람 필수: 동의 유효성)
+    if (req.method === "GET" && req.url?.startsWith("/legal/")) {
+      const doc = req.url.slice(7).split("?")[0];
+      const file = doc === "terms" ? "terms-of-service.md" : doc === "privacy" ? "privacy-policy.md" : "";
+      if (!file) { res.statusCode = 404; res.end("not_found"); return; }
+      try {
+        const md = readFileSync(fileURLToPath(new URL(`../../../docs/legal/${file}`, import.meta.url)), "utf8");
+        const esc = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><body style="max-width:720px;margin:40px auto;padding:0 20px;font-family:system-ui,sans-serif;line-height:1.7;white-space:pre-wrap;color:#222">${esc}</body>`);
+      } catch { res.statusCode = 404; res.end("not_found"); }
+      return;
+    }
     // 데일리 3마디 — 오늘의 표현(복습 due 우선 + 신규 채움) + 스트릭
     if (req.method === "GET" && req.url?.startsWith("/daily?")) {
       const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
