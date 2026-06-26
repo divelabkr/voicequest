@@ -2,7 +2,7 @@
 // 인메모리 세션 + access 게이트(알파 25명·일일 턴캡). accounts/invites는 파일 영속(data/vq-state.json).
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync, readdirSync, writeFile, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, writeFile, writeFileSync, mkdirSync, rename, renameSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, grantReferral, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes, topicToScene, pickTopic, DAIKI_TOPICS, topicsForChar } from "@voicequest/engine";
@@ -114,8 +114,11 @@ function saveState(): void {
     saveTimer = null;
     try {
       mkdirSync(DATA_DIR, { recursive: true });
-      writeFile(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] }), (err) => {
-        if (err) console.error("[persist] saveState 실패:", err.message); // 실패를 더는 삼키지 않음
+      // atomic write — 임시파일 기록 후 rename(원자적 교체). 직렬화 중 크래시·디스크풀에도 STATE_FILE은 온전한 이전본 유지(손상 방지).
+      const tmp = STATE_FILE + ".tmp";
+      writeFile(tmp, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] }), (err) => {
+        if (err) { console.error("[persist] saveState 실패:", err.message); return; } // 실패를 더는 삼키지 않음
+        rename(tmp, STATE_FILE, (rerr) => { if (rerr) console.error("[persist] saveState rename 실패:", rerr.message); });
       });
     } catch (e) { console.error("[persist] saveState 실패:", String(e)); }
   }, 200);
@@ -123,7 +126,8 @@ function saveState(): void {
 // 레드팀 H-3: 디바운스 윈도우 손실 방지 — 종료 시그널에 동기 flush(재시작 직전 turn 영속 보장).
 function flushStateSync(): void {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(STATE_FILE, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] })); } catch (e) { console.error("[persist] flush 실패:", String(e)); }
+  // atomic write(동기) — 임시파일 → renameSync. 종료 직전에도 상태파일 손상 없이 교체.
+  try { mkdirSync(DATA_DIR, { recursive: true }); const tmp = STATE_FILE + ".tmp"; writeFileSync(tmp, JSON.stringify({ accounts: [...accounts], invites: [...invites], daily: [...dailyStates], freetalk: [...freetalkStates], tokens: [...sessionTokens] })); renameSync(tmp, STATE_FILE); } catch (e) { console.error("[persist] flush 실패:", String(e)); }
 }
 for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, () => { flushStateSync(); process.exit(0); });
 try {
@@ -133,7 +137,10 @@ try {
   for (const [k, v] of s.daily ?? []) dailyStates.set(k, v);
   for (const [k, v] of s.freetalk ?? []) freetalkStates.set(k, v);
   for (const [k, v] of s.tokens ?? []) sessionTokens.set(k, v);
-} catch { /* 첫 실행: 상태 파일 없음 */ }
+} catch (e) {
+  // 파일 없음 = 첫 실행(정상·무음). 파일 있는데 parse 실패 = 손상 → 경고(백업 복원 필요, docs/ops/disaster-recovery.md 참조).
+  if (existsSync(STATE_FILE)) console.error("[persist] ⚠ 상태파일 손상 — 로드 실패(버킷 versioning 복원 필요):", String(e));
+}
 
 // [M5] 일일 턴캡 리셋 기준 = KST(UTC+9) 자정 — 유저 체감 "오늘"과 일치
 const today = (): string => new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
