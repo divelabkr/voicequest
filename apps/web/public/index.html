@@ -323,6 +323,14 @@ function talkView(){
     + '<button class="mic" id="mic" style="display:none">🎤 눌러서 말하기</button>';
   app.querySelector('#enter').onclick = enter;
   app.querySelector('#mic').onclick = onMic;
+  // 캐릭터·배경 이미지(manifest.image) — 입장 화면 다이키 + 라멘집 배경
+  fetch(API+'/episodes').then(function(r){return r.json()}).then(function(j){
+    var e=(j.episodes||[]).find(function(x){return x.id===currentEp;}); if(!e||!e.image) return;
+    var log=document.getElementById('log');
+    if(e.image.background&&log){ log.style.cssText+=';background-image:linear-gradient(rgba(250,247,242,.80),rgba(250,247,242,.93)),url("'+API+e.image.background+'");background-size:cover;background-position:center'; }
+    var en=document.getElementById('enter');
+    if(e.image.character&&en){ en.insertAdjacentHTML('beforebegin','<img src="'+API+e.image.character+'" alt="다이키" style="display:block;width:168px;height:168px;object-fit:cover;border-radius:50%;margin:28px auto 6px;border:3px solid var(--card);box-shadow:0 6px 20px rgba(0,0,0,.14)">'); }
+  }).catch(function(){});
 }
 
 async function resultView(){
