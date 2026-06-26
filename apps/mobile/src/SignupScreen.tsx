@@ -41,7 +41,7 @@ export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: stri
         overseasTransfer: overseas,
         dataProcessing: data,
       });
-      if (res.status === "active") onSignedUp(userId);
+      if (res.status === "active") onSignedUp(res.token ?? userId); // 서버 발급 192비트 토큰을 sid로(평문 userId 아님 — resolveUser 인증 통과). web과 동일(PR#9)
       else if (res.error?.startsWith("invite_")) setErr(inviteMsg(res.error));
       else setErr(res.status === "waitlisted" ? "정원이 찼어요(대기 등록됨)" : "동의가 필요합니다");
     } catch (e) {

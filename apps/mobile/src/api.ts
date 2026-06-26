@@ -75,13 +75,13 @@ export async function redeem(
   code: string,
   userId: string,
   consent: ConsentFlags,
-): Promise<{ status: string; error?: string }> {
+): Promise<{ status: string; error?: string; token?: string }> {
   const r = await fetch(`${API_BASE}/auth/redeem`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code, userId, consent }),
   });
-  return (await r.json()) as { status: string; error?: string };
+  return (await r.json()) as { status: string; error?: string; token?: string };
 }
 
 /** 가입 — 동의 + 인원 게이트. status: "active" | "pending_consent" | "waitlisted" */

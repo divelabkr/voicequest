@@ -8,6 +8,10 @@ set -e
 cd "$(dirname "$0")"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$ANDROID_HOME/platform-tools:$PATH"
+# 백엔드 URL — env로 덮어쓰기 가능, 없으면 cloud 기본(주입 깜빡 시 localhost 폴백 방지: 폰서 자기자신 호출 → 서버 못 찾음 버그 차단)
+export EXPO_PUBLIC_API_BASE="${EXPO_PUBLIC_API_BASE:-https://voicequest-api-tgmskrfryq-du.a.run.app}"
+export EXPO_PUBLIC_ADMIN_URL="${EXPO_PUBLIC_ADMIN_URL:-https://voicequest-api-tgmskrfryq-du.a.run.app/admin}"
+echo "🔗 API_BASE=$EXPO_PUBLIC_API_BASE"
 
 FLAVORS="${1:-user admin}"
 for FLAVOR in $FLAVORS; do
