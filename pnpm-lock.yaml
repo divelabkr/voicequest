@@ -69,6 +69,12 @@ importers:
         specifier: workspace:*
         version: link:../../engine
 
+  packages/adapters/stt-gemini:
+    dependencies:
+      '@voicequest/engine':
+        specifier: workspace:*
+        version: link:../../engine
+
   packages/adapters/tts-gemini:
     dependencies:
       '@voicequest/engine':
@@ -100,6 +106,9 @@ importers:
       '@voicequest/stt-deepgram':
         specifier: workspace:*
         version: link:../../packages/adapters/stt-deepgram
+      '@voicequest/stt-gemini':
+        specifier: workspace:*
+        version: link:../../packages/adapters/stt-gemini
       openai:
         specifier: ^6.44.0
         version: 6.44.0(ws@8.21.0)(zod@4.4.3)

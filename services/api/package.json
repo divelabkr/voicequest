@@ -14,6 +14,7 @@
     "@google/genai": "^2.8.0",
     "@voicequest/engine": "workspace:*",
     "@voicequest/stt-deepgram": "workspace:*",
+    "@voicequest/stt-gemini": "workspace:*",
     "@voicequest/llm-claude-haiku": "workspace:*",
     "@voicequest/llm-qwen": "workspace:*",
     "@voicequest/store-firestore": "workspace:*",
