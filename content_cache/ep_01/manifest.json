@@ -279,5 +279,9 @@
   "bgm": {
     "ending": "/cache/ep_01/bgm/ending.m4a",
     "bytes": 53422
+  },
+  "image": {
+    "character": "/cache/ep_01/images/char_daiki.jpg",
+    "background": "/cache/ep_01/images/bg_ramen.jpg"
   }
 }
