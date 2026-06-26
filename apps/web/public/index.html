@@ -114,7 +114,9 @@ function signupView(){
     + '<div class="note">탈퇴 시 모든 대화 기록이 삭제됩니다(잊혀질 권리).</div>'
     + '</div>';
   const code=app.querySelector('#code'), c1=app.querySelector('#c1'), c2=app.querySelector('#c2'), go=app.querySelector('#go');
-  var inv=new URLSearchParams(location.search).get('invite'); if(inv&&code){ code.value=inv; } // 초대 링크 자동 채움(바이럴 전환↑)
+  function fmtCode(v){ var s=v.toUpperCase().replace(/[^A-Z0-9]/g,''); if(s.indexOf('VQ')===0)s=s.slice(2); s=s.slice(0,8); var p=['VQ']; if(s.length>0)p.push(s.slice(0,4)); if(s.length>4)p.push(s.slice(4,8)); return p.join('-'); } // 하이픈 자동(VQ-XXXX-XXXX)
+  code.addEventListener('input',function(){ code.value=fmtCode(code.value); }); // 입력마다 하이픈 포맷
+  var inv=new URLSearchParams(location.search).get('invite'); if(inv&&code){ code.value=fmtCode(inv); } // 초대 링크 자동 채움(바이럴 전환↑)+포맷
   function upd(){ go.disabled = !(code.value.trim() && c1.checked && c2.checked); }
   [code,c1,c2].forEach(function(e){ e.addEventListener('input',upd); e.addEventListener('change',upd); });
   go.onclick = async function(){

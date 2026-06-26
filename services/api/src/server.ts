@@ -200,8 +200,8 @@ const EVENTS_DIR = fileURLToPath(new URL("../../../data/events/", import.meta.ur
 
 /** 운영자 전용 초대 코드 — crypto 랜덤. 형식 VQ-XXXX-XXXX. */
 function genInviteCode(): string {
-  const raw = randomBytes(8).toString("hex").toUpperCase(); // 64비트(레드팀: 32비트 brute-force 차단)
-  return `VQ-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}`;
+  const raw = randomBytes(4).toString("hex").toUpperCase(); // 32비트 8자리(UX 입력편의) — brute-force는 authFail rate limit(IP 분당 10)+초대제(알파)로 방어. 정식 출시·공개 시 재검토
+  return `VQ-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
 }
 function isAdmin(req: IncomingMessage): boolean {
   if (ADMIN_TOKEN === "") return false; // 토큰 미설정이면 항상 false
