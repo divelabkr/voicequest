@@ -9,6 +9,7 @@
     "verify": "pnpm -C packages/engine exec vitest run && pnpm -C services/api exec vitest run && pnpm -r exec tsc --noEmit",
     "gate": "pnpm -C spike exec tsx gate-check.ts",
     "drill": "node scripts/restore-drill.mjs",
+    "smoke": "node scripts/smoke-alpha.mjs",
     "postinstall": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
