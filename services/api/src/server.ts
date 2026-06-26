@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, writeFile, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes, topicToScene, pickTopic, DAIKI_TOPICS, topicsForChar } from "@voicequest/engine";
+import { initState, parseEpisode, canSpendTurn, recordTurn, STAGE_LIMITS, buildReadModel, timeToFirstWin, dropPoint, churnRisk, signup, canUseVoice, withdraw, grantReferral, issueInvite, redeemInvite, revokeInvite, evaluateGate, validateGeneratedScene, emptyMeter, rollMonth, recordCall, checkBudget, DEFAULT_BUDGET, canStart, spend, recharge, todaysCards, reviewCard, completeToday, makeCard, sceneStats, emptyQuality, recordQuality, summarizeQuality, sanitizeId, emptyErrors, recordError, summarizeErrors, needsUpdate, judge, pickShadowCards, cardToScene, shadowLevels, shadowThemes, topicToScene, pickTopic, DAIKI_TOPICS, topicsForChar } from "@voicequest/engine";
 import type { GameState, UsageState, GameEvent, EventStorePort, Account, ConsentFlags, InviteCode, Scene, Strictness, CostMeter, EnergyState, Episode, Grade, DailyState, DailyCard, SceneLevel } from "@voicequest/engine";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runTurn, type TurnResult } from "./session";
@@ -654,11 +654,26 @@ export const server = createServer(async (req, res) => {
       const existing = accounts.get(body.userId);
       if (existing) { invites.set(body.code, rd.invite); saveState(); res.end(JSON.stringify({ ...existing, token: issueToken(body.userId) })); return; }
       if (accounts.size >= CAP) { res.statusCode = 429; res.end(JSON.stringify({ status: "waitlisted" })); return; }
-      const acc = signup(body.userId, body.consent, Date.now());
+      let acc = signup(body.userId, body.consent, Date.now());
+      // 친구 초대 보상 — 코드에 inviter 있으면 양쪽 1달 무료(K-factor 엔진)
+      const inviterId = rd.invite.inviterUserId;
+      if (inviterId && accounts.has(inviterId)) {
+        accounts.set(inviterId, grantReferral(accounts.get(inviterId)!));
+        acc = grantReferral(acc);
+      }
       accounts.set(body.userId, acc); // 자리 즉시 예약(size 증가)
       invites.set(body.code, rd.invite); // 코드 바인딩 확정
       saveState();
       res.end(JSON.stringify({ ...acc, token: issueToken(body.userId) }));
+      return;
+    }
+    // ── 친구 초대 — 유저별 초대코드(없으면 발급) + 내 보상 적립 현황 ──
+    if (req.method === "GET" && req.url?.startsWith("/invite/mine")) {
+      const sid = resolveUser(new URL(req.url, "http://x").searchParams.get("sid") ?? "");
+      if (!accounts.has(sid)) { res.statusCode = 403; res.end(JSON.stringify({ error: "forbidden" })); return; }
+      let mine = [...invites.values()].find((iv) => iv.inviterUserId === sid && iv.status === "issued");
+      if (!mine) { const code = genInviteCode(); mine = issueInvite(code, Date.now(), "친구초대", sid); invites.set(code, mine); saveState(); }
+      res.end(JSON.stringify({ code: mine.code, referralMonths: accounts.get(sid)?.referralMonths ?? 0 }));
       return;
     }
     // ── 탈퇴(잊혀질 권리 — 계정·세션·이벤트 삭제 + 코드 폐기) ──

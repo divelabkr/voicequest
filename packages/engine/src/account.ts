@@ -14,12 +14,19 @@ export interface Account {
   status: AccountStatus;
   consent: ConsentFlags;
   createdTs: number;
+  /** 친구 초대 보상 — 1달 무료 누적(초대자·피초대자 양쪽 +1). 알파(무료)는 적립만, 유료 전환 시 차감. */
+  referralMonths?: number;
 }
 
 /** 가입 — 두 동의가 다 있으면 active, 아니면 pending_consent(음성 사용 불가). */
 export function signup(userId: string, consent: ConsentFlags, ts: number): Account {
   const ok = consent.overseasTransfer && consent.dataProcessing;
-  return { userId, status: ok ? "active" : "pending_consent", consent, createdTs: ts };
+  return { userId, status: ok ? "active" : "pending_consent", consent, createdTs: ts, referralMonths: 0 };
+}
+
+/** 친구 초대 보상 적립 — 1달 무료 누적. 알파는 적립만(유료 전환 시 차감). */
+export function grantReferral(account: Account, months = 1): Account {
+  return { ...account, referralMonths: (account.referralMonths ?? 0) + months };
 }
 
 /** 음성(STT/TTS 해외) 사용 가능? active + 국외이전 동의 시만(§9 동의 게이트). */
