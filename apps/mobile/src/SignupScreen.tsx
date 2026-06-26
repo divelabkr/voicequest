@@ -12,6 +12,17 @@ function inviteMsg(error: string): string {
   return "초대 코드를 확인해 주세요.";
 }
 
+// 하이픈 자동 포맷 — VQ-XXXX-XXXX(8 hex). VQ·하이픈 입력 여부 무관하게 정규화.
+function fmtCode(v: string): string {
+  let s = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (s.startsWith("VQ")) s = s.slice(2);
+  s = s.slice(0, 8);
+  const p = ["VQ"];
+  if (s.length > 0) p.push(s.slice(0, 4));
+  if (s.length > 4) p.push(s.slice(4, 8));
+  return p.join("-");
+}
+
 export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: string) => void }) {
   const [code, setCode] = useState("");
   const [overseas, setOverseas] = useState(false);
@@ -50,11 +61,12 @@ export default function SignupScreen({ onSignedUp }: { onSignedUp: (userId: stri
         <TextInput
           style={st.input}
           value={code}
-          onChangeText={setCode}
+          onChangeText={(v) => setCode(fmtCode(v))}
           placeholder="VQ-XXXX-XXXX"
           placeholderTextColor={T.hint}
           autoCapitalize="characters"
           autoCorrect={false}
+          maxLength={11}
         />
 
         <View style={st.row}>
