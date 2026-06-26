@@ -7,7 +7,7 @@ export type CostKind = "stt" | "judge" | "gen" | "tts";
 /** 호출당 추정 비용(USD). judge=로컬 Qwen=0, tts=빌드타임 캐시. 착수 시 재검증. */
 export const UNIT_COST: Record<CostKind, number> = {
   stt: 0.001, // Deepgram 짧은 발화 1회 추정
-  judge: 0, // 로컬 Qwen — 런타임 무료
+  judge: 0.0008, // 클라우드 Haiku 폴백 보수 추정(in~500/out~100 토큰·캐시·fast-path 감안). 로컬 Qwen은 실제 0이나 폭주 차단 위해 보수 계상
   gen: 0.005, // Anthropic opus 씬 생성 1회 추정(작은 프롬프트)
   tts: 0.0003, // 캐시 빌드 1줄(빌드타임, 런타임은 0회)
 };
@@ -25,8 +25,8 @@ export interface BudgetConfig {
   alertRatios: number[];
 }
 
-/** 알파 기본 예산 — $20/월, 50·80·100%에서 알림. 운영자 화면에서 조정 가능하게 둠. */
-export const DEFAULT_BUDGET: BudgetConfig = { monthlyUsdCap: 20, alertRatios: [0.5, 0.8, 1.0] };
+/** 알파 기본 예산 — 월 5000원 한도(≈$3.5, 환율~1430 보수). 50·80·100%(2500·4000·5000원)에서 알림. 운영자 화면에서 조정 가능. */
+export const DEFAULT_BUDGET: BudgetConfig = { monthlyUsdCap: 3.5, alertRatios: [0.5, 0.8, 1.0] };
 
 export function emptyMeter(month: string): CostMeter {
   return { month, calls: { stt: 0, judge: 0, gen: 0, tts: 0 }, estUsd: 0 };
