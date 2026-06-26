@@ -4,10 +4,12 @@ import { readFileSync } from "node:fs";
 import { buildReadModel } from "@voicequest/engine";
 import type { Episode, TtsPort, EventStorePort, GameEvent } from "@voicequest/engine";
 import { DeepgramStt } from "@voicequest/stt-deepgram";
+import { GeminiStt } from "@voicequest/stt-gemini";
 import { QwenLlm } from "@voicequest/llm-qwen";
 import { ClaudeLlm } from "@voicequest/llm-claude-haiku";
 import { initFirestore, type FirestoreApp } from "@voicequest/store-firestore";
 import { CachedLlm, FallbackLlm } from "./llm-decorators";
+import { FallbackStt } from "./stt-decorators";
 import type { TurnDeps } from "./session";
 
 /** .env 파서(인라인 주석·따옴표·CR 정리). */
@@ -23,7 +25,7 @@ export function loadEnv(path: string | URL): Record<string, string> {
     }
   } catch { /* .env 없음(클라우드 배포) — process.env만 사용 */ }
   // 클라우드 주입 env 지원(Render/Cloud Run) — .env에 없는 키는 process.env에서 채움(.env 우선).
-  for (const k of ["DEEPGRAM_KEY", "DEEPGRAM_HOST", "ANTHROPIC_KEY", "ANTHROPIC_API_KEY", "ADMIN_TOKEN", "MIN_APP_VERSION", "FIREBASE_SERVICE_ACCOUNT", "CORS_ORIGINS", "OLLAMA_URL", "OLLAMA_MODEL"]) {
+  for (const k of ["DEEPGRAM_KEY", "DEEPGRAM_HOST", "GEMINI_KEY", "ANTHROPIC_KEY", "ANTHROPIC_API_KEY", "ADMIN_TOKEN", "MIN_APP_VERSION", "FIREBASE_SERVICE_ACCOUNT", "CORS_ORIGINS", "OLLAMA_URL", "OLLAMA_MODEL"]) {
     const pv = process.env[k];
     if (!env[k] && pv) env[k] = pv;
   }
@@ -41,7 +43,9 @@ export interface BootResult {
 export function bootstrap(episode: Episode, envPath: string | URL): BootResult {
   const env = loadEnv(envPath);
   if (!env.DEEPGRAM_KEY) throw new Error("DEEPGRAM_KEY 없음 — .env 확인");
-  const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY, host: env.DEEPGRAM_HOST });
+  const deepgram = new DeepgramStt({ apiKey: env.DEEPGRAM_KEY, host: env.DEEPGRAM_HOST });
+  // STT 폴백 — Deepgram 장애·빈 전사 시 Gemini로 재시도(음성 게이트 단일 의존 제거). GEMINI_KEY 있을 때만 장착.
+  const stt = env.GEMINI_KEY ? new FallbackStt(deepgram, new GeminiStt({ apiKey: env.GEMINI_KEY })) : deepgram;
   // 데코레이터 체인 — judge 캐시(반복 발화 0초·0원) + 품질 폴백(Haiku 키 있으면 저신뢰 재판정).
   // judge()·session·turn은 그대로. 캐시·폴백·품질이 LlmPort 뒤로 숨음(흩어짐 방지·규칙7).
   const anthropicKey = env.ANTHROPIC_KEY ?? env.ANTHROPIC_API_KEY ?? "";
