@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { postTurn, withdraw, API_BASE, type TurnResult } from "./api";
 import { createRecorder, type Recorder } from "./recorder";
-import { playAudio } from "./player";
+import { playAudio, playBgm, stopBgm } from "./player";
 import Furigana from "./Furigana";
 import { T } from "./theme";
 
@@ -38,7 +38,12 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
     setBusy(false);
   }, [apply, userId, onDone]);
 
-  const enter = useCallback(async () => { setEntered(true); await advanceNpc(); }, [advanceNpc]);
+  const enter = useCallback(async () => {
+    setEntered(true);
+    // 엔딩 BGM 루프 — 입장 분위기(web과 동일, manifest.bgm.ending). 캐시 콜라주라 비용 0.
+    try { const eps = await (await fetch(`${API_BASE}/episodes`)).json(); const e0 = (eps.episodes || [])[0]; if (e0?.bgm?.ending) playBgm(`${API_BASE}${e0.bgm.ending}`); } catch { /* BGM 실패 무시 */ }
+    await advanceNpc();
+  }, [advanceNpc]);
 
   const onMic = useCallback(async () => {
     if (busy) return;
@@ -64,6 +69,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   }, [rec, busy, apply, advanceNpc, userId, onDone]);
 
   useEffect(() => { micActionRef.current = onMic; }, [onMic]);
+  useEffect(() => () => stopBgm(), []); // 화면 이탈 시 BGM 정지
 
   return (
     <View style={st.root}>
@@ -79,7 +85,11 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
         </View>
         <ScrollView style={st.log} contentContainerStyle={{ padding: 12 }}>
           {!entered ? (
-            <Pressable style={st.enter} onPress={enter}><Text style={st.enterText}>입장하기</Text></Pressable>
+            <View style={st.welcome}>
+              <Text style={st.bowl}>🍜</Text>
+              <Text style={st.welcomeSub}>다이키의 라멘집에 들어갑니다</Text>
+              <Pressable style={st.enter} onPress={enter}><Text style={st.enterText}>입장하기</Text></Pressable>
+            </View>
           ) : (
             lines.map((l, i) => (
               <View key={i} style={[st.bubble, l.who === "you" ? st.you : st.npc]}>
@@ -117,8 +127,11 @@ const st = StyleSheet.create({
   aff: { fontSize: 15, color: T.accent },
   withdraw: { fontSize: 13, color: T.hint },
   log: { flex: 1 },
-  enter: { alignSelf: "center", marginTop: 40, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: T.card, borderRadius: T.radiusMd, borderWidth: 0.5, borderColor: T.line },
-  enterText: { fontSize: 16, fontWeight: "500", color: T.ink },
+  welcome: { alignItems: "center", marginTop: 56, gap: 14 },
+  bowl: { fontSize: 76 },
+  welcomeSub: { fontSize: 15, color: T.muted },
+  enter: { alignSelf: "center", marginTop: 8, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: T.accent, borderRadius: T.radiusMd },
+  enterText: { fontSize: 16, fontWeight: "500", color: T.accentInk },
   bubble: { maxWidth: "82%", padding: 10, borderRadius: T.radiusLg, marginVertical: 5 },
   npc: { alignSelf: "flex-start", backgroundColor: T.card, borderWidth: 0.5, borderColor: T.line },
   you: { alignSelf: "flex-end", backgroundColor: T.primary },
