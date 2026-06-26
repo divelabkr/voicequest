@@ -10,10 +10,10 @@ describe("budget — 비용 거버넌스(⑥⑦⑧)", () => {
     expect(m.estUsd).toBeGreaterThan(0);
   });
 
-  it("judge(로컬 Qwen)는 비용 0", () => {
+  it("judge(클라우드 Haiku 폴백)는 보수 단가 계상 — 로컬 Qwen은 실제 0이나 폭주 차단 위해 계상", () => {
     const m = recordCall(emptyMeter("2026-06"), "judge", 5);
     expect(m.calls.judge).toBe(5);
-    expect(m.estUsd).toBe(0);
+    expect(m.estUsd).toBeGreaterThan(0); // 클라우드엔 ollama 없음 → Haiku judge 유료. 비용 누락(과소추정) 방지
   });
 
   it("월이 바뀌면 카운터 리셋", () => {
