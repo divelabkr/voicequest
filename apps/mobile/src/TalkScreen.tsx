@@ -1,7 +1,7 @@
 // Talk 화면 — 마이크 입력이 유일 입력(음성 게이트). NPC 능동 beat 자동 진행 + 유저 발화 판정.
 // 녹음은 플랫폼 무관 recorder(.native=expo-av / .web=MediaRecorder). 넓은 화면은 maxWidth 중앙.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image, ImageBackground } from "react-native";
 import { postTurn, withdraw, API_BASE, type TurnResult } from "./api";
 import { createRecorder, type Recorder } from "./recorder";
 import { playAudio } from "./player";
@@ -16,6 +16,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   const [rec, setRec] = useState<Recorder | null>(null);
   const [busy, setBusy] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [img, setImg] = useState<{ character?: string; background?: string }>({});
   const micActionRef = useRef<() => void>(() => {});
 
   const apply = useCallback((res: TurnResult) => {
@@ -64,6 +65,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   }, [rec, busy, apply, advanceNpc, userId, onDone]);
 
   useEffect(() => { micActionRef.current = onMic; }, [onMic]);
+  useEffect(() => { fetch(`${API_BASE}/episodes`).then((r) => r.json()).then((j) => { const e0 = (j.episodes || [])[0]; if (e0?.image) setImg(e0.image); }).catch(() => {}); }, []); // 캐릭터·배경 이미지(manifest.image)
 
   return (
     <View style={st.root}>
@@ -79,11 +81,13 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
         </View>
         <ScrollView style={st.log} contentContainerStyle={{ padding: 12 }}>
           {!entered ? (
-            <View style={st.welcome}>
-              <Text style={st.bowl}>🍜</Text>
+            <ImageBackground source={img.background ? { uri: `${API_BASE}${img.background}` } : undefined} style={st.welcome} imageStyle={st.welcomeBg} resizeMode="cover">
+              {img.character
+                ? <Image source={{ uri: `${API_BASE}${img.character}` }} style={st.charImg} />
+                : <Text style={st.bowl}>🍜</Text>}
               <Text style={st.welcomeSub}>다이키의 라멘집에 들어갑니다</Text>
               <Pressable style={st.enter} onPress={enter}><Text style={st.enterText}>입장하기</Text></Pressable>
-            </View>
+            </ImageBackground>
           ) : (
             lines.map((l, i) => (
               <View key={i} style={[st.bubble, l.who === "you" ? st.you : st.npc]}>
@@ -121,9 +125,11 @@ const st = StyleSheet.create({
   aff: { fontSize: 15, color: T.accent },
   withdraw: { fontSize: 13, color: T.hint },
   log: { flex: 1 },
-  welcome: { alignItems: "center", marginTop: 56, gap: 14 },
+  welcome: { alignItems: "center", marginTop: 40, paddingVertical: 28, gap: 14, borderRadius: T.radiusLg, overflow: "hidden" },
+  welcomeBg: { opacity: 0.22, borderRadius: T.radiusLg },
+  charImg: { width: 168, height: 168, borderRadius: 84, borderWidth: 3, borderColor: T.card },
   bowl: { fontSize: 76 },
-  welcomeSub: { fontSize: 15, color: T.muted },
+  welcomeSub: { fontSize: 15, color: T.ink, fontWeight: "500" },
   enter: { alignSelf: "center", marginTop: 8, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: T.accent, borderRadius: T.radiusMd },
   enterText: { fontSize: 16, fontWeight: "500", color: T.accentInk },
   bubble: { maxWidth: "82%", padding: 10, borderRadius: T.radiusLg, marginVertical: 5 },
