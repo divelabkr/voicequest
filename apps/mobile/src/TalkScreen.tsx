@@ -1,7 +1,7 @@
 // Talk 화면 — 마이크 입력이 유일 입력(음성 게이트). NPC 능동 beat 자동 진행 + 유저 발화 판정.
 // 녹음은 플랫폼 무관 recorder(.native=expo-av / .web=MediaRecorder). 넓은 화면은 maxWidth 중앙.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image, ImageBackground } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image, ImageBackground, Animated, Easing } from "react-native";
 import { postTurn, withdraw, API_BASE, type TurnResult } from "./api";
 import { createRecorder, type Recorder } from "./recorder";
 import { playAudio } from "./player";
@@ -19,6 +19,14 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   const [img, setImg] = useState<{ character?: string; background?: string }>({});
   const [yourTurn, setYourTurn] = useState(false);
   const micActionRef = useRef<() => void>(() => {});
+  // 종이인형 흔들림 — 캐릭터가 살짝 들썩이며 "살아있는" 느낌(회전+상하 loop)
+  const sway = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(sway, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(sway, { toValue: 0, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
+  }, [sway]);
 
   const apply = useCallback((res: TurnResult) => {
     setAffinity(res.affinity);
@@ -82,11 +90,16 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
             </Pressable>
           </View>
         </View>
+        {entered && img.character ? (
+          <View style={st.stageBar}>
+            <Animated.Image source={{ uri: `${API_BASE}${img.character}` }} style={[st.stageChar, { transform: [{ rotate: sway.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "2deg"] }) }, { translateY: sway.interpolate({ inputRange: [0, 1], outputRange: [2, -2] }) }] }]} />
+          </View>
+        ) : null}
         <ScrollView style={st.log} contentContainerStyle={{ padding: 12 }}>
           {!entered ? (
             <ImageBackground source={img.background ? { uri: `${API_BASE}${img.background}` } : undefined} style={st.welcome} imageStyle={st.welcomeBg} resizeMode="cover">
               {img.character
-                ? <Image source={{ uri: `${API_BASE}${img.character}` }} style={st.charImg} />
+                ? <Animated.Image source={{ uri: `${API_BASE}${img.character}` }} style={[st.charImg, { transform: [{ rotate: sway.interpolate({ inputRange: [0, 1], outputRange: ["-2.5deg", "2.5deg"] }) }, { translateY: sway.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) }] }]} />
                 : <Text style={st.bowl}>🍜</Text>}
               <Text style={st.welcomeSub}>다이키의 라멘집에 들어갑니다</Text>
               <Pressable style={st.enter} onPress={enter}><Text style={st.enterText}>입장하기</Text></Pressable>
@@ -131,6 +144,8 @@ const st = StyleSheet.create({
   welcome: { alignItems: "center", marginTop: 40, paddingVertical: 28, gap: 14, borderRadius: T.radiusLg, overflow: "hidden" },
   welcomeBg: { opacity: 0.22, borderRadius: T.radiusLg },
   charImg: { width: 168, height: 168, borderRadius: 84, borderWidth: 3, borderColor: T.card },
+  stageBar: { alignItems: "center", paddingVertical: 8, backgroundColor: T.card, borderBottomWidth: 0.5, borderColor: T.line },
+  stageChar: { width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: T.line },
   bowl: { fontSize: 76 },
   welcomeSub: { fontSize: 15, color: T.ink, fontWeight: "500" },
   enter: { alignSelf: "center", marginTop: 8, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: T.accent, borderRadius: T.radiusMd },
