@@ -17,6 +17,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
   const [busy, setBusy] = useState(false);
   const [entered, setEntered] = useState(false);
   const [img, setImg] = useState<{ character?: string; background?: string }>({});
+  const [yourTurn, setYourTurn] = useState(false);
   const micActionRef = useRef<() => void>(() => {});
 
   const apply = useCallback((res: TurnResult) => {
@@ -33,6 +34,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
       (res.queue || []).forEach(apply); // 배치 — 1요청으로 user beat까지 NPC 대사 일괄(perf #2)
       setAffinity(res.affinity);
       if (res.done) onDone?.();
+      else setYourTurn(res.awaitsUser ?? true); // NPC 발화 끝 → 당신 차례(음성 게이트 신호)
     } catch (e) {
       setLines((l) => [...l, { who: "npc", text: `(오류) ${String(e)}` }]);
     }
@@ -50,6 +52,7 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
       return;
     }
     setBusy(true);
+    setYourTurn(false); // 발화 시작 → 당신 차례 해제
     let blob: Blob | null = null;
     try { blob = await rec.stop(); } catch { /* noop */ } finally { setRec(null); }
     try {
@@ -106,10 +109,10 @@ export default function TalkScreen({ userId, onWithdraw, onDone }: { userId: str
         </ScrollView>
         {entered ? (
           <View style={st.micBar}>
-            <Pressable style={[st.mic, busy && st.micBusy]} onPress={onMic} disabled={busy}>
+            <Pressable style={[st.mic, busy && st.micBusy, yourTurn && !busy && !rec && st.micTurn]} onPress={onMic} disabled={busy}>
               {busy ? <ActivityIndicator color={T.accentInk} /> : <Text style={st.micText}>{rec ? "■" : "🎤"}</Text>}
             </Pressable>
-            <Text style={st.micHint}>{busy ? "처리 중…" : rec ? "멈추고 전송" : "눌러서 말하기"}</Text>
+            <Text style={[st.micHint, yourTurn && !busy && !rec && st.micHintTurn]}>{busy ? "처리 중…" : rec ? "멈추고 전송" : yourTurn ? "🎤 당신 차례 — 눌러서 말해보세요" : "눌러서 말하기"}</Text>
           </View>
         ) : null}
       </View>
@@ -145,4 +148,6 @@ const st = StyleSheet.create({
   micBusy: { opacity: 0.7 },
   micText: { fontSize: 30, color: T.accentInk },
   micHint: { fontSize: 13, color: T.muted },
+  micTurn: { borderWidth: 3, borderColor: T.primary, transform: [{ scale: 1.08 }] },
+  micHintTurn: { color: T.accent, fontWeight: "700", fontSize: 14 },
 });
